@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getWishlist } from '@/lib/wishlists';
-import { getProduct } from '@/lib/firestore';
+import { getWishlistAction } from '@/actions/wishlists';
+import { getProductAction } from '@/actions/products';
 import { ProductCard } from '@/components/storefront/ProductCard';
 
 export default function WishlistPage() {
@@ -19,10 +19,10 @@ export default function WishlistPage() {
   async function loadWishlist() {
     setLoading(true);
     try {
-      const items = await getWishlist(customerId);
+      const items = await getWishlistAction(customerId);
 
       // Fetch product details
-      const productPromises = items.map((item: any) => getProduct(item.productId));
+      const productPromises = items.map((item: any) => getProductAction(item.productId));
       const products = await Promise.all(productPromises);
 
       setWishlistItems(products.filter(p => p !== null));

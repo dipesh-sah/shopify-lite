@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getCustomerOrders } from '@/lib/firestore';
-import { createReturn, getCustomerReturns } from '@/lib/returns';
+import { getCustomerOrdersAction } from "@/actions/orders"
+import { createReturnAction, getCustomerReturnsAction } from "@/actions/returns"
 import { useAuth } from '@/contexts/AuthContext';
 import { showToast } from '@/components/ui/Toast';
 import Link from 'next/link';
@@ -29,8 +29,8 @@ export default function ReturnsPage() {
     setLoading(true);
     try {
       const [ordersData, returnsData] = await Promise.all([
-        getCustomerOrders(user?.email || undefined, user?.uid),
-        getCustomerReturns(user?.uid!)
+        getCustomerOrdersAction(user?.email || undefined, user?.uid),
+        getCustomerReturnsAction(user?.uid!)
       ]);
       // Only delivered orders are eligible for return
       setOrders(ordersData.filter((o: any) => o.status === 'DELIVERED'));
@@ -47,7 +47,7 @@ export default function ReturnsPage() {
     if (!selectedOrder) return;
 
     try {
-      await createReturn({
+      await createReturnAction({
         orderId: selectedOrder.id,
         customerId: user!.uid,
         customerEmail: user!.email!,

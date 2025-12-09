@@ -213,13 +213,11 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
                     addItem({
                       id: product.id,
                       name: product.name,
-                      price: product.price + variant.priceDelta,
-                      image: product.images?.[0] || '',
-                      quantity: 1,
-                      variantId: variant.id,
-                      variantSku: variant.sku,
-                      variantOptions: selectedOptions,
-                    })
+                      description: product.description || '',
+                      price: product.price,
+                      images: product.images || [],
+                      categoryId: product.categoryId || ''
+                    }, 1, variant.id)
                   }}
                 />
               ) : (

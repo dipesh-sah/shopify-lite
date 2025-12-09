@@ -129,7 +129,7 @@ export default function ProductDetailsPage({ params }: { params: Promise<{ id: s
     // Use tmp id for new ones
     const v = { id: `tmp-${Date.now()}`, sku: variantForm.sku, priceDelta, stock, options }
     setVariants([...variants, v])
-    setVariantForm({ sku: '', priceDelta: '', stock: '', optionsSelected: {} })
+    setVariantForm({ sku: '', priceDelta: '', stock: '', optionsSelected: {}, image: '' })
   }
 
   function removeVariant(idx: number) {
@@ -329,13 +329,10 @@ export default function ProductDetailsPage({ params }: { params: Promise<{ id: s
             )}
           </div>
         </div>
-        )
-}
-    </div >
-        </div >
 
-    {/* Inventory */ }
-    < div className = "rounded-lg border bg-card p-6" >
+
+        {/* Inventory */}
+        <div className="rounded-lg border bg-card p-6">
           <h2 className="text-lg font-semibold mb-4">Inventory</h2>
 
           <div className="grid grid-cols-3 gap-4">
@@ -380,16 +377,16 @@ export default function ProductDetailsPage({ params }: { params: Promise<{ id: s
               />
             </div>
           </div>
-        </div >
+        </div>
 
-    {/* Images */ }
-    < div className = "rounded-lg border bg-card p-6" >
+        {/* Images */}
+        <div className="rounded-lg border bg-card p-6">
           <h2 className="text-lg font-semibold mb-4">Product Images</h2>
           <ImagePicker images={images} onChange={setImages} />
-        </div >
+        </div>
 
-    {/* Shipping */ }
-    < div className = "rounded-lg border bg-card p-6" >
+        {/* Shipping */}
+        <div className="rounded-lg border bg-card p-6">
           <h2 className="text-lg font-semibold mb-4">Shipping</h2>
 
           <div className="grid grid-cols-4 gap-4">
@@ -410,21 +407,21 @@ export default function ProductDetailsPage({ params }: { params: Promise<{ id: s
 
             {/* Dimensions section removed as it is not supported by backend yet */}
           </div>
-        </div >
+        </div>
 
-    <div className="flex gap-4">
-      <Button type="submit" disabled={loading}>
-        {loading ? "Updating..." : "Update Product"}
-      </Button>
-      <Button
-        type="button"
-        variant="outline"
-        onClick={() => router.back()}
-      >
-        Cancel
-      </Button>
+        <div className="flex gap-4">
+          <Button type="submit" disabled={loading}>
+            {loading ? "Updating..." : "Update Product"}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => router.back()}
+          >
+            Cancel
+          </Button>
+        </div>
+      </form>
     </div>
-      </form >
-    </div >
   )
 }

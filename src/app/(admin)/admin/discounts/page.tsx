@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { getPromotions, createPromotion, updatePromotion, deletePromotion } from '@/lib/firestore'
+import { getPromotionsAction, createPromotionAction, updatePromotionAction, deletePromotionAction } from '@/actions/promotions'
 import { showToast } from '@/components/ui/Toast'
 import { showConfirm } from '@/components/ui/Confirm'
 import { Button } from '@/components/ui/button'
@@ -28,7 +28,7 @@ const initialForm: PromoForm = {
   minOrderAmount: 0,
   maxUsages: 0,
   startDate: new Date().toISOString().split('T')[0],
-  endDate: new Date(Date.now() + 30*24*60*60*1000).toISOString().split('T')[0],
+  endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
   isActive: true,
 }
 
@@ -47,7 +47,7 @@ export default function AdminPromotionsPage() {
   async function loadPromotions() {
     try {
       setLoading(true)
-      const data = await getPromotions(false)
+      const data = await getPromotionsAction(false)
       setPromotions(data)
     } catch (error) {
       console.error('Failed to load promotions:', error)
@@ -80,11 +80,11 @@ export default function AdminPromotionsPage() {
       }
 
       if (editingId) {
-        await updatePromotion(editingId, data)
+        await updatePromotionAction(editingId, data)
         setPromotions(promotions.map(p => p.id === editingId ? { ...p, ...data } : p))
         showToast('Promotion updated', 'success')
       } else {
-        await createPromotion(data)
+        await createPromotionAction(data)
         await loadPromotions()
         showToast('Promotion created', 'success')
       }
@@ -105,7 +105,7 @@ export default function AdminPromotionsPage() {
     if (!confirmed) return
 
     try {
-      await deletePromotion(id)
+      await deletePromotionAction(id)
       setPromotions(promotions.filter(p => p.id !== id))
       showToast('Promotion deleted', 'success')
     } catch (error) {
@@ -117,7 +117,7 @@ export default function AdminPromotionsPage() {
   function startEdit(promo: any) {
     const startDate = promo.startDate instanceof Date ? promo.startDate : new Date(promo.startDate);
     const endDate = promo.endDate instanceof Date ? promo.endDate : new Date(promo.endDate);
-    
+
     setForm({
       code: promo.code,
       description: promo.description || '',
@@ -312,23 +312,22 @@ export default function AdminPromotionsPage() {
             const now = new Date();
             const isExpired = now > endDate;
             const isActive = promo.isActive && !isExpired;
-            
+
             return (
               <div key={promo.id} className="border rounded-lg p-4 flex items-center justify-between bg-card">
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-2">
                     <h3 className="font-semibold text-lg">{promo.code}</h3>
-                    <div className={`px-2 py-1 rounded-full text-xs font-medium ${
-                      isActive
-                        ? 'bg-green-100 text-green-700'
-                        : 'bg-gray-100 text-gray-700'
-                    }`}>
+                    <div className={`px-2 py-1 rounded-full text-xs font-medium ${isActive
+                      ? 'bg-green-100 text-green-700'
+                      : 'bg-gray-100 text-gray-700'
+                      }`}>
                       {isActive ? 'Active' : isExpired ? 'Expired' : 'Inactive'}
                     </div>
                   </div>
-                  
+
                   <p className="text-sm text-muted-foreground mb-2">{promo.description}</p>
-                  
+
                   <div className="grid grid-cols-4 gap-4 text-sm">
                     <div>
                       <span className="text-muted-foreground">Discount: </span>

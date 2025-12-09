@@ -42,7 +42,7 @@ export async function POST(request: Request) {
       try {
         if (variantId) {
           // Update variant stock
-          await firestore.updateVariantOnProduct(productId, variantId, { stock })
+          await firestore.updateVariantOnProduct(productId, variantId, { inventoryQuantity: stock })
         } else {
           // Update product stock
           const product = await firestore.getProduct(productId)
@@ -51,7 +51,7 @@ export async function POST(request: Request) {
             results.failed++
             continue
           }
-          await firestore.updateProduct(productId, { stock })
+          await firestore.updateProduct(productId, { quantity: stock })
         }
         results.success++
       } catch (err: any) {

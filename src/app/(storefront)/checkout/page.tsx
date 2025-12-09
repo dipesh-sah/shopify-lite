@@ -4,7 +4,8 @@ import { useCart } from "@/store/cart"
 import { Button } from "@/components/ui/button"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/contexts/AuthContext"
-import { createOrder, getPromotionByCode } from "@/lib/firestore"
+import { createOrderAction } from '@/actions/orders'
+import { getPromotionByCodeAction } from '@/actions/promotions'
 import { showToast } from "@/components/ui/Toast"
 import { useState, useEffect } from "react"
 import { AlertCircle, CheckCircle, X } from "lucide-react"
@@ -42,7 +43,7 @@ export default function CheckoutPage() {
 
     setApplyingPromo(true)
     try {
-      const promo = await getPromotionByCode(promoCode)
+      const promo = await getPromotionByCodeAction(promoCode)
       if (!promo) {
         showToast('Promo code not found', 'error')
         return
@@ -85,7 +86,7 @@ export default function CheckoutPage() {
         total: total,
       }
 
-      const orderId = await createOrder(orderData)
+      const orderId = await createOrderAction(orderData)
       setSuccess(true)
       clearCart()
 

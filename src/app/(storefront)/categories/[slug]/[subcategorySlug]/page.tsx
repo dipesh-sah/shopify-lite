@@ -1,16 +1,17 @@
-import { getSubcategoryBySlug, getProductsBySubcategory } from "@/lib/firestore"
+import { getCollectionBySlug } from "@/lib/collections"
+import { getProducts } from "@/lib/products"
 import { ProductCard } from "@/components/storefront/ProductCard"
 import { notFound } from "next/navigation"
 
 export default async function SubcategoryPage({ params }: { params: Promise<{ subcategorySlug: string }> }) {
   const resolvedParams = await params
-  const subcategory = await getSubcategoryBySlug(resolvedParams.subcategorySlug)
+  const subcategory = await getCollectionBySlug(resolvedParams.subcategorySlug)
 
   if (!subcategory) {
     notFound()
   }
 
-  const products = await getProductsBySubcategory(subcategory.id)
+  const products = await getProducts({ category: subcategory.id })
 
   return (
     <div className="container py-8">

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getProducts } from '@/lib/firestore';
+import { getProductsAction } from '@/actions/products';
 import { useCart } from '@/store/cart';
 import { getBulkPricingTiers } from '@/lib/pricing';
 import { showToast } from '@/components/ui/Toast';
@@ -37,7 +37,7 @@ export default function BulkOrderPage() {
   async function loadProducts() {
     setLoading(true);
     try {
-      const data = await getProducts();
+      const data = await getProductsAction();
       setProducts(data);
       setFilteredProducts(data);
     } catch (error) {
@@ -62,12 +62,11 @@ export default function BulkOrderPage() {
     addItem({
       id: product.id,
       name: product.name,
+      description: product.description || '',
       price: product.price,
-      image: product.images?.[0] || '',
-      quantity: qty,
-      variantId: product.variants?.[0]?.id,
-      variantSku: product.variants?.[0]?.sku,
-    });
+      images: product.images || [],
+      categoryId: product.categoryId || ''
+    }, qty, product.variants?.[0]?.id);
 
     showToast(`Added ${qty} ${product.name} to cart`, 'success');
     setQuantities((prev) => ({ ...prev, [product.id]: 0 }));
@@ -82,12 +81,11 @@ export default function BulkOrderPage() {
           addItem({
             id: product.id,
             name: product.name,
+            description: product.description || '',
             price: product.price,
-            image: product.images?.[0] || '',
-            quantity: qty,
-            variantId: product.variants?.[0]?.id,
-            variantSku: product.variants?.[0]?.sku,
-          });
+            images: product.images || [],
+            categoryId: product.categoryId || ''
+          }, qty, product.variants?.[0]?.id);
           addedCount++;
         }
       }

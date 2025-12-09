@@ -1,6 +1,6 @@
 "use server"
 
-import { deleteOrder, updateOrderStatus, getOrder } from "@/lib/firestore"
+import { deleteOrder, updateOrderStatus, getOrder, createOrder } from "@/lib/firestore"
 
 export async function deleteOrderAction(id: string) {
   try {
@@ -29,5 +29,25 @@ export async function getOrderAction(id: string) {
   } catch (error) {
     console.error("Error fetching order:", error)
     return null
+  }
+}
+
+export async function getCustomerOrdersAction(email?: string, userId?: string) {
+  try {
+    // In a real implementation this would query the DB
+    // For now we return empty array or stub
+    return []
+  } catch (error) {
+    console.error("Error fetching customer orders:", error)
+    return []
+  }
+}
+export async function createOrderAction(data: any) {
+  try {
+    const orderId = await createOrder(data)
+    return orderId
+  } catch (error) {
+    console.error("Error creating order:", error)
+    throw error
   }
 }

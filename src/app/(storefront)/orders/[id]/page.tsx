@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 import { useAuth } from '@/contexts/AuthContext'
-import { getOrder, getProduct } from '@/lib/firestore'
+import { getOrderAction } from '@/actions/orders'
+import { getProductAction } from '@/actions/products'
 import { ArrowLeft, Package, CheckCircle, Clock, AlertCircle, MapPin, Mail, Phone } from 'lucide-react'
 
 interface OrderItem {
@@ -64,7 +65,7 @@ export default function OrderDetailsPage() {
   const loadOrderDetails = async () => {
     try {
       setIsLoading(true)
-      const orderData = await getOrder(orderId)
+      const orderData = await getOrderAction(orderId) as any
 
       if (!orderData) {
         setError('Order not found.')
@@ -84,9 +85,9 @@ export default function OrderDetailsPage() {
         const productMap = new Map<string, Product>()
         for (const item of orderData.items) {
           try {
-            const product = await getProduct(item.productId)
+            const product = await getProductAction(item.productId)
             if (product) {
-              productMap.set(item.productId, product as Product)
+              productMap.set(item.productId, product as any)
             }
           } catch (err) {
             console.error(`Failed to load product ${item.productId}:`, err)

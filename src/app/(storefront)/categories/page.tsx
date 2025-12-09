@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import Link from "next/link"
-import { getActiveCategories } from "@/lib/firestore"
+import { getActiveCollectionsAction } from "@/actions/collections"
 import { ArrowRight } from "lucide-react"
 
 export default function CategoriesPage() {
@@ -12,7 +12,7 @@ export default function CategoriesPage() {
   useEffect(() => {
     async function loadCategories() {
       try {
-        const cats = await getActiveCategories()
+        const cats = await getActiveCollectionsAction()
         setCategories(cats)
       } catch (error) {
         console.error('Failed to load categories:', error)

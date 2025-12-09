@@ -62,7 +62,7 @@ export default function AdminOrderDetailsPage() {
           try {
             const product = await getProductAction(item.productId)
             if (product) {
-              productMap.set(item.productId, product as Product)
+              productMap.set(item.productId, product as any)
             }
           } catch (err) {
             console.error(`Failed to load product ${item.productId}:`, err)

@@ -12,6 +12,15 @@ export async function getCollectionsAction() {
   }
 }
 
+export async function getActiveCollectionsAction() {
+  try {
+    return await db.getActiveCollections()
+  } catch (error) {
+    console.error("Error getting active collections:", error)
+    return []
+  }
+}
+
 export async function getSubcategoriesAction(parentId: string) {
   try {
     return await db.getSubcategories(parentId)

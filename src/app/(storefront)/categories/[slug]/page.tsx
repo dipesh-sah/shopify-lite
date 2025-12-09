@@ -1,4 +1,5 @@
-import { getCategoryBySlug, getProductsByCategory } from "@/lib/firestore"
+import { getCollectionBySlug } from "@/lib/collections"
+import { getProducts } from "@/lib/products"
 import { ProductCard } from "@/components/storefront/ProductCard"
 import { notFound } from "next/navigation"
 
@@ -10,13 +11,13 @@ interface CategoryPageProps {
 
 export default async function CategoryPage({ params }: { params: Promise<{ slug: string }> }) {
   const resolvedParams = await params
-  const category = await getCategoryBySlug(resolvedParams.slug)
+  const category = await getCollectionBySlug(resolvedParams.slug)
 
   if (!category) {
     notFound()
   }
 
-  const products = await getProductsByCategory(category.id)
+  const products = await getProducts({ category: category.id })
 
   return (
     <div className="container py-8">

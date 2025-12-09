@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { getProductsAction } from "@/actions/products"
 import { ProductCard } from "@/components/storefront/ProductCard"
-import { getActiveCategories } from "@/lib/firestore"
+import { getActiveCollectionsAction } from "@/actions/collections"
 
 export default function ProductsPage() {
   const [products, setProducts] = useState<any[]>([])
@@ -20,7 +20,7 @@ export default function ProductsPage() {
         setProducts(allProducts)
 
         // Load active categories
-        const cats = await getActiveCategories()
+        const cats = await getActiveCollectionsAction()
         setCategories(cats)
       } catch (error) {
         console.error('Failed to load data:', error)
@@ -44,8 +44,8 @@ export default function ProductsPage() {
   const filteredProducts = selectedSubcategory
     ? products.filter(p => p.subcategoryId === selectedSubcategory)
     : selectedCategory
-    ? products.filter(p => p.categoryId === selectedCategory)
-    : products
+      ? products.filter(p => p.categoryId === selectedCategory)
+      : products
 
   if (loading) {
     return (
@@ -68,11 +68,10 @@ export default function ProductsPage() {
           <div className="flex flex-wrap gap-2">
             <button
               onClick={() => setSelectedCategory("")}
-              className={`px-4 py-2 rounded-full border transition-colors ${
-                selectedCategory === ""
-                  ? "bg-black text-white border-black"
-                  : "border-gray-300 hover:border-black"
-              }`}
+              className={`px-4 py-2 rounded-full border transition-colors ${selectedCategory === ""
+                ? "bg-black text-white border-black"
+                : "border-gray-300 hover:border-black"
+                }`}
             >
               All Products
             </button>
@@ -80,11 +79,10 @@ export default function ProductsPage() {
               <button
                 key={cat.id}
                 onClick={() => setSelectedCategory(cat.id)}
-                className={`px-4 py-2 rounded-full border transition-colors ${
-                  selectedCategory === cat.id
-                    ? "bg-black text-white border-black"
-                    : "border-gray-300 hover:border-black"
-                }`}
+                className={`px-4 py-2 rounded-full border transition-colors ${selectedCategory === cat.id
+                  ? "bg-black text-white border-black"
+                  : "border-gray-300 hover:border-black"
+                  }`}
               >
                 {cat.name}
               </button>

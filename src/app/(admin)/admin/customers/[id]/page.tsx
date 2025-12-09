@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { getCustomerOrders } from '@/lib/firestore'
+import { getCustomerOrdersAction } from '@/actions/orders'
 import { ArrowLeft, Mail, Package, DollarSign, Calendar, TrendingUp, CheckCircle, Clock } from 'lucide-react'
 
 interface Order {
@@ -26,7 +26,7 @@ export default function CustomerDetailsPage({ params }: { params: { id: string }
   useEffect(() => {
     const loadOrders = async () => {
       try {
-        const data = await getCustomerOrders(customerEmail)
+        const data = await getCustomerOrdersAction(customerEmail)
         setOrders(data as Order[])
       } catch (error) {
         console.error('Failed to load orders:', error)
@@ -140,7 +140,7 @@ export default function CustomerDetailsPage({ params }: { params: { id: string }
             {orders.length > 0 ? `${((paidOrders / orders.length) * 100).toFixed(0)}% of orders` : 'No orders'}
           </p>
           <div className="mt-3 w-full bg-muted h-1 rounded-full overflow-hidden">
-            <div 
+            <div
               className="bg-green-600 h-full"
               style={{ width: orders.length > 0 ? `${(paidOrders / orders.length) * 100}%` : '0%' }}
             />
@@ -157,7 +157,7 @@ export default function CustomerDetailsPage({ params }: { params: { id: string }
             {orders.length > 0 ? `${((deliveredOrders / orders.length) * 100).toFixed(0)}% of orders` : 'No orders'}
           </p>
           <div className="mt-3 w-full bg-muted h-1 rounded-full overflow-hidden">
-            <div 
+            <div
               className="bg-blue-600 h-full"
               style={{ width: orders.length > 0 ? `${(deliveredOrders / orders.length) * 100}%` : '0%' }}
             />
@@ -174,7 +174,7 @@ export default function CustomerDetailsPage({ params }: { params: { id: string }
             {orders.length > 0 ? `${((orders.filter(o => o.status === 'PENDING').length / orders.length) * 100).toFixed(0)}% of orders` : 'No orders'}
           </p>
           <div className="mt-3 w-full bg-muted h-1 rounded-full overflow-hidden">
-            <div 
+            <div
               className="bg-yellow-600 h-full"
               style={{ width: orders.length > 0 ? `${(orders.filter(o => o.status === 'PENDING').length / orders.length) * 100}%` : '0%' }}
             />
@@ -271,22 +271,20 @@ export default function CustomerDetailsPage({ params }: { params: { id: string }
                       ${order.total.toFixed(2)}
                     </td>
                     <td className="p-4 align-middle">
-                      <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${
-                        order.status === 'DELIVERED'
-                          ? 'bg-green-50 text-green-700'
-                          : order.status === 'PENDING'
+                      <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${order.status === 'DELIVERED'
+                        ? 'bg-green-50 text-green-700'
+                        : order.status === 'PENDING'
                           ? 'bg-yellow-50 text-yellow-700'
                           : 'bg-red-50 text-red-700'
-                      }`}>
+                        }`}>
                         {order.status}
                       </span>
                     </td>
                     <td className="p-4 align-middle">
-                      <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${
-                        order.isPaid
-                          ? 'bg-green-50 text-green-700'
-                          : 'bg-red-50 text-red-700'
-                      }`}>
+                      <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${order.isPaid
+                        ? 'bg-green-50 text-green-700'
+                        : 'bg-red-50 text-red-700'
+                        }`}>
                         {order.isPaid ? 'Paid' : 'Pending'}
                       </span>
                     </td>

@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useAuth } from '@/contexts/AuthContext'
-import { getCustomerOrders } from '@/lib/firestore'
+import { getCustomerOrdersAction } from '@/actions/orders'
 import { ArrowLeft, Package, CheckCircle, Clock, AlertCircle } from 'lucide-react'
 
 interface Order {
@@ -43,7 +43,7 @@ export default function OrdersPage() {
   const loadOrders = async () => {
     try {
       setIsLoading(true)
-      const data = await getCustomerOrders(undefined, user?.uid)
+      const data = await getCustomerOrdersAction(undefined, user?.uid)
       setOrders(data as Order[])
     } catch (err) {
       console.error('Failed to load orders:', err)

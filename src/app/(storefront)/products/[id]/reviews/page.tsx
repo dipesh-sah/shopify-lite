@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
-import { createReview, getProductReviews } from '@/lib/firestore'
+import { createReviewAction, getProductReviewsAction } from '@/actions/reviews'
 import { getProductAction } from '@/actions/products'
 import { showToast } from '@/components/ui/Toast'
 import { Button } from '@/components/ui/button'
@@ -16,7 +16,7 @@ export default function ProductReviewsPage({ params }: { params: Promise<{ id: s
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [showForm, setShowForm] = useState(false)
-  
+
   const [formData, setFormData] = useState({
     rating: 5,
     title: '',
@@ -29,8 +29,8 @@ export default function ProductReviewsPage({ params }: { params: Promise<{ id: s
       try {
         const prod = await getProductAction(resolvedParams.id)
         setProduct(prod)
-        
-        const revs = await getProductReviews(resolvedParams.id, true)
+
+        const revs = await getProductReviewsAction(resolvedParams.id, true)
         setReviews(revs)
       } catch (error) {
         console.error('Failed to load data:', error)
@@ -43,7 +43,7 @@ export default function ProductReviewsPage({ params }: { params: Promise<{ id: s
 
   async function handleSubmitReview(e: React.FormEvent) {
     e.preventDefault()
-    
+
     if (!user || !product) {
       showToast('Please sign in to leave a review', 'error')
       return
@@ -56,7 +56,7 @@ export default function ProductReviewsPage({ params }: { params: Promise<{ id: s
 
     setSubmitting(true)
     try {
-      await createReview({
+      await createReviewAction({
         productId: product.id,
         userId: user.uid,
         userName: user.email?.split('@')[0] || 'Anonymous',
@@ -71,7 +71,7 @@ export default function ProductReviewsPage({ params }: { params: Promise<{ id: s
       setShowForm(false)
 
       // Reload reviews
-      const revs = await getProductReviews(product.id, true)
+      const revs = await getProductReviewsAction(product.id, true)
       setReviews(revs)
     } catch (error) {
       console.error('Failed to submit review:', error)
@@ -107,11 +107,10 @@ export default function ProductReviewsPage({ params }: { params: Promise<{ id: s
             {[...Array(5)].map((_, i) => (
               <Star
                 key={i}
-                className={`h-5 w-5 ${
-                  i < Math.floor(Number(avgRating))
-                    ? 'fill-yellow-400 text-yellow-400'
-                    : 'text-muted-foreground'
-                }`}
+                className={`h-5 w-5 ${i < Math.floor(Number(avgRating))
+                  ? 'fill-yellow-400 text-yellow-400'
+                  : 'text-muted-foreground'
+                  }`}
               />
             ))}
           </div>
@@ -147,11 +146,10 @@ export default function ProductReviewsPage({ params }: { params: Promise<{ id: s
                     className="focus:outline-none transition"
                   >
                     <Star
-                      className={`h-8 w-8 cursor-pointer ${
-                        r <= formData.rating
-                          ? 'fill-yellow-400 text-yellow-400'
-                          : 'text-muted-foreground'
-                      }`}
+                      className={`h-8 w-8 cursor-pointer ${r <= formData.rating
+                        ? 'fill-yellow-400 text-yellow-400'
+                        : 'text-muted-foreground'
+                        }`}
                     />
                   </button>
                 ))}
@@ -215,7 +213,7 @@ export default function ProductReviewsPage({ params }: { params: Promise<{ id: s
       {/* Reviews List */}
       <div className="space-y-4">
         <h2 className="text-2xl font-bold mb-6">Customer Reviews</h2>
-        
+
         {reviews.length === 0 ? (
           <div className="text-center py-12 text-muted-foreground border rounded-lg">
             <Star className="h-12 w-12 mx-auto mb-4 opacity-30" />
@@ -233,11 +231,10 @@ export default function ProductReviewsPage({ params }: { params: Promise<{ id: s
                   {[...Array(5)].map((_, i) => (
                     <Star
                       key={i}
-                      className={`h-4 w-4 ${
-                        i < review.rating
-                          ? 'fill-yellow-400 text-yellow-400'
-                          : 'text-muted-foreground'
-                      }`}
+                      className={`h-4 w-4 ${i < review.rating
+                        ? 'fill-yellow-400 text-yellow-400'
+                        : 'text-muted-foreground'
+                        }`}
                     />
                   ))}
                 </div>

@@ -65,6 +65,11 @@ export async function getSubcategories(parentId: string) {
   return rows.map(mapCollectionFromDb);
 }
 
+export async function getAllSubcategories() {
+  const rows = await query('SELECT * FROM categories WHERE parent_id IS NOT NULL ORDER BY created_at DESC');
+  return rows.map(mapCollectionFromDb);
+}
+
 export async function getActiveCollections() {
   const rows = await query("SELECT * FROM categories WHERE status = 'active' ORDER BY created_at DESC");
   return rows.map(mapCollectionFromDb);
@@ -162,6 +167,7 @@ function mapCollectionFromDb(row: any) {
     isActive: row.status === 'active',
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+    categoryId: row.parent_id ? row.parent_id.toString() : undefined,
     // productIds would need a separate query if needed eagerly, but usually fetched separately or joined
     // For compatibility, we might return empty array or fetch if critical.
     // Leaving empty for now to avoid N+1 queries in list views.

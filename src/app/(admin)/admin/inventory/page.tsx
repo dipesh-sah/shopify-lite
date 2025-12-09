@@ -1,5 +1,5 @@
 import { getProducts, getCategories } from '@/lib/firestore'
-import Link from 'next/link'
+import { InventoryControls } from '@/components/admin/InventoryControls'
 
 type Props = {
   searchParams?: { [key: string]: string | string[] | undefined }
@@ -24,49 +24,43 @@ export default async function InventoryPage({ searchParams }: Props) {
     }
   })
 
+  // Filter rows based on criteria if needed strictly in js (though SQL might be better, let's stick to existing logic if any)
+  // The existing code didn't filter rows in JS, it seems it relied on `getProducts` or just displayed all.
+  // Wait, the original code had:
+  // products.forEach...
+  // It didn't seem to filter `rows` by category or low stock in JS loop explicitly shown in my snippet?
+  // Let me re-read snippet 758.
+  // Ah, it pushes everything to rows.
+  // But wait, `getProducts` doesn't take params in the original call `const products = await getProducts()`.
+  // So the filtering was NOT happening server side?
+  // But the UI had inputs for filtering.
+  // Ah, the `getProducts` usage in snippet 758 line 9: `const products = await getProducts()`.
+  // It ignores `searchParams`?
+  // That seems like a bug in the original code, OR `getProducts` reads something else? No.
+  // Maybe I should fix that too, but my goal is to fix the BUILD error (SSR event handler).
+  // I won't change logic unless requested.
+  // However, I see `getProducts` takes options: `status`, `category`, `search`, `limit`, `offset`.
+  // I should probably pass the category filter to `getProducts` if I want it to work.
+  // But the prompt says "Fixing Product Types" and "migration".
+  // I'll stick to reproducing the original behavior to be safe, but fixing the SSR issue.
+  // The original code was: `const products = await getProducts()`.
+
+  const csvUrl = `/api/inventory/csv?${new URLSearchParams({
+    ...(selectedCategory ? { categoryId: String(selectedCategory) } : {}),
+    ...(lowStock ? { lowStock: '1' } : {}),
+    ...(threshold ? { threshold: String(threshold) } : {}),
+  }).toString()}`
+
   return (
     <div className="max-w-5xl">
       <h1 className="text-2xl font-bold mb-6">Inventory Report</h1>
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-3">
-          <select id="categoryId" name="categoryId" className="px-2 py-1 border rounded" defaultValue={selectedCategory || ''} onChange={(e) => {
-            const params = new URLSearchParams(window.location.search)
-            if (e.target.value) params.set('categoryId', e.target.value)
-            else params.delete('categoryId')
-            window.location.search = params.toString()
-          }}>
-            <option value="">All categories</option>
-            {categories.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </select>
-
-          <label className="flex items-center gap-2">
-            <input type="checkbox" defaultChecked={!!lowStock} onChange={(e) => {
-              const params = new URLSearchParams(window.location.search)
-              if (e.currentTarget.checked) params.set('lowStock', '1')
-              else params.delete('lowStock')
-              window.location.search = params.toString()
-            }} />
-            Low stock only
-          </label>
-
-          <input type="number" defaultValue={threshold ?? 5} className="px-2 py-1 border rounded w-20" onBlur={(e) => {
-            const params = new URLSearchParams(window.location.search)
-            const val = e.currentTarget.value
-            if (val) params.set('threshold', val)
-            else params.delete('threshold')
-            window.location.search = params.toString()
-          }} />
-        </div>
-
-        <div className="flex gap-2">
-          <a href={`/api/inventory/csv?${new URLSearchParams({
-            ...(selectedCategory ? { categoryId: String(selectedCategory) } : {}),
-            ...(lowStock ? { lowStock: '1' } : {}),
-            ...(threshold ? { threshold: String(threshold) } : {}),
-          }).toString()}`} className="px-3 py-2 bg-primary text-white rounded hover:bg-primary/90">Download CSV</a>
-          <Link href="/admin/inventory/import" className="px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Import CSV</Link>
-        </div>
-      </div>
+      <InventoryControls
+        categories={categories}
+        selectedCategory={selectedCategory}
+        lowStock={lowStock}
+        threshold={threshold || 5}
+        csvUrl={csvUrl}
+      />
       <div className="overflow-auto">
         <table className="min-w-full text-sm">
           <thead>
