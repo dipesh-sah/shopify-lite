@@ -1,0 +1,269 @@
+'use client'
+
+import { useCart } from "@/store/cart"
+import { Button } from "@/components/ui/button"
+import { useRouter } from "next/navigation"
+import { useAuth } from "@/contexts/AuthContext"
+import { createOrder, getPromotionByCode } from "@/lib/firestore"
+import { showToast } from "@/components/ui/Toast"
+import { useState, useEffect } from "react"
+import { AlertCircle, CheckCircle, X } from "lucide-react"
+
+export default function CheckoutPage() {
+  const { items, clearCart } = useCart()
+  const { user, loading } = useAuth()
+  const router = useRouter()
+  const [isPlacingOrder, setIsPlacingOrder] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState(false)
+  const [promoCode, setPromoCode] = useState('')
+  const [promotion, setPromotion] = useState<any>(null)
+  const [applyingPromo, setApplyingPromo] = useState(false)
+
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push('/signin')
+    }
+  }, [user, loading, router])
+
+  const subtotal = items.reduce((sum, item) => sum + (item.product.price * item.quantity), 0)
+  const discountAmount = promotion ? (
+    promotion.discountType === 'percentage'
+      ? (subtotal * promotion.discountValue) / 100
+      : Math.min(promotion.discountValue, subtotal)
+  ) : 0
+  const total = Math.max(0, subtotal - discountAmount)
+
+  async function applyPromotion() {
+    if (!promoCode.trim()) {
+      showToast('Please enter a promo code', 'error')
+      return
+    }
+
+    setApplyingPromo(true)
+    try {
+      const promo = await getPromotionByCode(promoCode)
+      if (!promo) {
+        showToast('Promo code not found', 'error')
+        return
+      }
+
+      setPromotion(promo)
+      showToast('Promo code applied!', 'success')
+      setPromoCode('')
+    } catch (error) {
+      console.error('Failed to apply promo:', error)
+      showToast('Failed to apply promo code', 'error')
+    } finally {
+      setApplyingPromo(false)
+    }
+  }
+
+  const handlePlaceOrder = async () => {
+    if (!user) {
+      setError('You must be signed in to place an order')
+      return
+    }
+
+    if (items.length === 0) {
+      setError('Your cart is empty')
+      return
+    }
+
+    setIsPlacingOrder(true)
+    setError(null)
+
+    try {
+      const orderData = {
+        userId: user.uid,
+        customerEmail: user.email || undefined,
+        items: items.map((item) => ({
+          productId: item.product.id,
+          quantity: item.quantity,
+          price: Number(item.product.price),
+        })),
+        total: total,
+      }
+
+      const orderId = await createOrder(orderData)
+      setSuccess(true)
+      clearCart()
+
+      setTimeout(() => {
+        router.push(`/orders/${orderId}`)
+      }, 2000)
+    } catch (err) {
+      console.error('Error placing order:', err)
+      setError('Failed to place order. Please try again.')
+    } finally {
+      setIsPlacingOrder(false)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!user) {
+    return null
+  }
+
+  if (success) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center space-y-6 max-w-md mx-auto px-4">
+          <div className="flex justify-center">
+            <CheckCircle className="w-16 h-16 text-green-600" />
+          </div>
+          <h1 className="text-3xl font-bold">Order Placed Successfully!</h1>
+          <p className="text-muted-foreground">
+            Thank you for your order. You'll be redirected to your order details shortly.
+          </p>
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="container px-4 md:px-6 py-8 md:py-12 max-w-2xl mx-auto">
+      <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-8">Checkout</h1>
+
+      <div className="space-y-8">
+        {/* Error Message */}
+        {error && (
+          <div className="rounded-lg border border-red-200 bg-red-50 p-4 flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+            <p className="text-red-700 text-sm">{error}</p>
+          </div>
+        )}
+
+        {/* Promo Code Section */}
+        <div className="rounded-lg border bg-card p-6">
+          <h2 className="font-semibold mb-4">Promo Code</h2>
+          <div className="space-y-4">
+            {promotion ? (
+              <div className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-lg">
+                <div className="flex items-center gap-2">
+                  <CheckCircle className="w-5 h-5 text-green-600" />
+                  <div>
+                    <p className="font-medium text-green-900">{promotion.code}</p>
+                    <p className="text-sm text-green-700">
+                      {promotion.discountType === 'percentage'
+                        ? `${promotion.discountValue}% off`
+                        : `$${promotion.discountValue} off`}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setPromotion(null)}
+                  className="text-green-600 hover:text-green-800"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            ) : (
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={promoCode}
+                  onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
+                  placeholder="Enter promo code"
+                  className="flex-1 px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+                <Button
+                  onClick={applyPromotion}
+                  disabled={applyingPromo || !promoCode.trim()}
+                  variant="outline"
+                >
+                  {applyingPromo ? 'Applying...' : 'Apply'}
+                </Button>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Order Summary */}
+        <div className="rounded-lg border bg-card p-6">
+          <h2 className="font-semibold mb-4">Order Summary</h2>
+          <div className="space-y-4">
+            {items.length === 0 ? (
+              <p className="text-muted-foreground text-center py-8">Your cart is empty</p>
+            ) : (
+              <>
+                {items.map((item) => (
+                  <div key={item.product.id} className="flex justify-between items-center py-2 border-b last:border-0">
+                    <div>
+                      <p className="font-medium">{item.product.name}</p>
+                      <p className="text-sm text-muted-foreground">Qty: {item.quantity}</p>
+                    </div>
+                    <p className="font-semibold">${(Number(item.product.price) * item.quantity).toFixed(2)}</p>
+                  </div>
+                ))}
+
+                <div className="mt-4 pt-4 border-t space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Subtotal</span>
+                    <span>${subtotal.toFixed(2)}</span>
+                  </div>
+                  {promotion && discountAmount > 0 && (
+                    <div className="flex justify-between text-sm text-green-600">
+                      <span>Discount ({promotion.code})</span>
+                      <span>-${discountAmount.toFixed(2)}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between text-lg font-bold pt-2 border-t">
+                    <span>Total</span>
+                    <span className="text-primary">${total.toFixed(2)}</span>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Shipping Info */}
+        <div className="rounded-lg border bg-card p-6">
+          <h2 className="font-semibold mb-4">Shipping Information</h2>
+          <div className="space-y-3 text-sm">
+            <div>
+              <p className="text-muted-foreground mb-1">Email</p>
+              <p className="font-medium">{user.email}</p>
+            </div>
+            <p className="text-muted-foreground text-xs">
+              Shipping address functionality coming soon. We'll send order details to your email.
+            </p>
+          </div>
+        </div>
+
+        {/* Place Order Info */}
+        <div className="rounded-lg border border-blue-200 bg-blue-50 p-6">
+          <h3 className="font-semibold text-blue-900 mb-2">Ready to Place Your Order?</h3>
+          <p className="text-sm text-blue-800">
+            Click the button below to confirm and place your order. You'll receive an order confirmation email shortly.
+          </p>
+        </div>
+
+        {/* Actions */}
+        <div className="flex gap-4 justify-center">
+          <Button variant="outline" onClick={() => router.back()} disabled={isPlacingOrder}>
+            Continue Shopping
+          </Button>
+          <Button
+            onClick={handlePlaceOrder}
+            disabled={items.length === 0 || isPlacingOrder}
+          >
+            {isPlacingOrder ? 'Placing Order...' : 'Place Order'}
+          </Button>
+        </div>
+      </div>
+    </div>
+  )
+}
