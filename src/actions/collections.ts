@@ -12,6 +12,15 @@ export async function getCollectionsAction() {
   }
 }
 
+export async function getCollectionAction(id: string) {
+  try {
+    return await db.getCollection(id)
+  } catch (error) {
+    console.error("Error getting collection:", error)
+    return null
+  }
+}
+
 export async function getActiveCollectionsAction() {
   try {
     return await db.getActiveCollections()

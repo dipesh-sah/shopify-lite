@@ -45,26 +45,7 @@ export default async function AdminProductsPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-4">
-        <div className="rounded-md border bg-card p-4 shadow-sm">
-          <div className="text-xs font-medium text-muted-foreground uppercase mb-2">Average sell-through rate</div>
-          <div className="text-2xl font-bold">2% <span className="text-sm font-normal text-muted-foreground">—</span></div>
-        </div>
-        <div className="rounded-md border bg-card p-4 shadow-sm">
-          <div className="text-xs font-medium text-muted-foreground uppercase mb-2">Products by days of inventory remaining</div>
-          <div className="text-2xl font-bold text-muted-foreground">No data</div>
-        </div>
-        <div className="rounded-md border bg-card p-4 shadow-sm">
-          <div className="text-xs font-medium text-muted-foreground uppercase mb-2">ABC product analysis</div>
-          <div className="text-2xl font-bold">
-            $6,580.00 <span className="text-sm font-normal text-muted-foreground">B</span>{' '}
-            <span className="text-foreground">$181,375.27</span> <span className="text-sm font-normal text-muted-foreground">C</span>
-          </div>
-          <div className="text-sm text-muted-foreground mt-1">
-            $6,534.00 NULL
-          </div>
-        </div>
-      </div>
+
 
       <ProductsTable products={products} />
     </div>
