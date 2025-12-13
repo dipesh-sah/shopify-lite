@@ -51,6 +51,7 @@ export async function getProducts(options: {
   search?: string;
   limit?: number;
   offset?: number;
+  ids?: string[];
 } = {}) {
   let sql = `
     SELECT p.*, c.name as category_name 
@@ -59,6 +60,12 @@ export async function getProducts(options: {
     WHERE 1=1
   `;
   const params: any[] = [];
+
+  if (options.ids && options.ids.length > 0) {
+    const placeholders = options.ids.map(() => '?').join(',');
+    sql += ` AND p.id IN (${placeholders})`;
+    params.push(...options.ids);
+  }
 
   if (options.status) {
     sql += ' AND p.status = ?';
@@ -69,7 +76,7 @@ export async function getProducts(options: {
   // Currently filtering by legacy category_id or need JOIN product_collections
   if (options.category) {
     // For now, support filtering by main category_id OR check product_collections
-    sql += ' AND (p.category_id = ? OR EXISTS (SELECT 1 FROM product_collections pc WHERE pc.product_id = p.id AND pc.collection_id = ?))';
+    sql += ' AND (p.category_id = ? OR EXISTS (SELECT 1 FROM product_categories pc WHERE pc.product_id = p.id AND pc.category_id = ?))';
     params.push(options.category, options.category);
   }
 
@@ -90,18 +97,68 @@ export async function getProducts(options: {
     params.push(options.offset);
   }
 
-  const rows = await query(sql, params);
+  try {
+    const rows = await query(sql, params);
 
-  const products = await Promise.all(rows.map(async (row: any) => {
-    const images = await getProductImages(row.id);
-    // Note: getProducts (list) might not need full collection list for perf, 
-    // but mapping expects it. We can lazy load or fetch.
-    // For now, fetch collections for correctness.
-    const collectionIds = await getProductCollectionIds(row.id);
-    return mapProductFromDb(row, images, collectionIds);
-  }));
+    if (rows.length === 0) return [];
 
-  return products;
+    // Batch fetch images and collections to avoid N+1 queries
+    const productIds = rows.map((r: any) => r.id);
+    const placeholders = productIds.map(() => '?').join(',');
+
+    const [allImages, allCollectionCategories] = await Promise.all([
+      query(`SELECT * FROM product_images WHERE product_id IN (${placeholders}) ORDER BY product_id, position ASC`, productIds),
+      query(`SELECT pc.category_id, pc.product_id, c.name 
+             FROM product_categories pc 
+             JOIN categories c ON pc.category_id = c.id 
+             WHERE pc.product_id IN (${placeholders})`, productIds)
+    ]);
+
+    // Group by product_id for fast lookup
+    const imagesByProduct: Record<string, ProductImage[]> = {};
+    allImages.forEach((img: any) => {
+      if (!imagesByProduct[img.product_id]) imagesByProduct[img.product_id] = [];
+      imagesByProduct[img.product_id].push({
+        id: img.id.toString(),
+        productId: img.product_id.toString(),
+        url: img.url,
+        altText: img.alt_text,
+        position: img.position
+      });
+    });
+
+    const collectionsByProduct: Record<string, string[]> = {};
+    const collectionNamesByProduct: Record<string, string[]> = {};
+
+    allCollectionCategories.forEach((cat: any) => {
+      const pid = cat.product_id.toString();
+      if (!collectionsByProduct[pid]) collectionsByProduct[pid] = [];
+      if (!collectionNamesByProduct[pid]) collectionNamesByProduct[pid] = [];
+
+      collectionsByProduct[pid].push(cat.category_id.toString());
+      if (cat.name) collectionNamesByProduct[pid].push(cat.name);
+    });
+
+    const products = rows.map((row: any) => {
+      const pId = row.id.toString();
+
+      // Override category_name with all collection names if available
+      if (collectionNamesByProduct[pId] && collectionNamesByProduct[pId].length > 0) {
+        row.category_name = collectionNamesByProduct[pId].join(', ');
+      }
+
+      return mapProductFromDb(
+        row,
+        imagesByProduct[pId] || [],
+        collectionsByProduct[pId] || []
+      );
+    });
+
+    return products;
+  } catch (err) {
+    console.error("Error in getProducts:", err);
+    throw err;
+  }
 }
 
 export async function getProduct(id: string) {
@@ -173,7 +230,7 @@ export async function createProduct(data: Omit<Product, 'id' | 'createdAt' | 'up
   if (data.collectionIds && data.collectionIds.length > 0) {
     for (const colId of data.collectionIds) {
       await execute(
-        'INSERT IGNORE INTO product_collections (product_id, collection_id) VALUES (?, ?)',
+        'INSERT IGNORE INTO product_categories (product_id, category_id) VALUES (?, ?)',
         [productId, colId]
       );
     }
@@ -262,12 +319,12 @@ export async function updateProduct(id: string, data: Partial<Product>) {
   // Handle Collections Update
   if (data.collectionIds) {
     // 1. Delete existing
-    await execute('DELETE FROM product_collections WHERE product_id = ?', [id]);
+    await execute('DELETE FROM product_categories WHERE product_id = ?', [id]);
     // 2. Insert new
     if (data.collectionIds.length > 0) {
       for (const colId of data.collectionIds) {
         await execute(
-          'INSERT IGNORE INTO product_collections (product_id, collection_id) VALUES (?, ?)',
+          'INSERT IGNORE INTO product_categories (product_id, category_id) VALUES (?, ?)',
           [id, colId]
         );
       }
@@ -347,8 +404,8 @@ async function getProductImages(productId: string | number) {
 }
 
 async function getProductCollectionIds(productId: string | number): Promise<string[]> {
-  const rows = await query('SELECT collection_id FROM product_collections WHERE product_id = ?', [productId]);
-  return rows.map((r: any) => r.collection_id.toString());
+  const rows = await query('SELECT category_id FROM product_categories WHERE product_id = ?', [productId]);
+  return rows.map((r: any) => r.category_id.toString());
 }
 
 function mapProductFromDb(row: any, images: ProductImage[], collectionIds: string[]): Product {

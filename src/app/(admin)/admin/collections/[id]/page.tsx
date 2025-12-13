@@ -9,14 +9,15 @@ interface PageProps {
 
 export default async function EditCollectionPage({ params }: PageProps) {
   const { id } = await params
-  const [collection, products] = await Promise.all([
-    getCollectionAction(id),
-    getProductsAction()
-  ])
+  const collection = await getCollectionAction(id)
 
   if (!collection) {
     notFound()
   }
 
-  return <CollectionForm collection={collection} availableProducts={products} />
+  const products = collection.productIds && collection.productIds.length > 0
+    ? await getProductsAction({ ids: collection.productIds })
+    : []
+
+  return <CollectionForm collection={collection} initialSelectedProducts={products} />
 }

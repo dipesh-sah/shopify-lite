@@ -13,7 +13,8 @@ import {
   Percent,
   Archive,
   ShoppingCart,
-  ChevronDown
+  ChevronDown,
+  Image
 } from "lucide-react"
 
 interface SidebarItem {
@@ -38,6 +39,7 @@ const sidebarItems: SidebarItem[] = [
   },
   { icon: Users, label: "Customers", href: "/admin/customers" },
   { icon: Percent, label: "Discounts", href: "/admin/discounts" },
+  { icon: Image, label: "Media", href: "/admin/media" },
 ]
 
 export function AdminSidebar() {

@@ -4,8 +4,19 @@ import { getCollectionsAction } from "@/actions/collections"
 import { CollectionsTable } from "@/components/admin/CollectionsTable"
 import { Button } from "@/components/ui/button"
 
-export default async function CollectionsPage() {
-  const collections = await getCollectionsAction()
+interface CollectionsPageProps {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>
+}
+
+export default async function CollectionsPage(props: CollectionsPageProps) {
+  const searchParams = await props.searchParams
+  const page = typeof searchParams.page === 'string' ? parseInt(searchParams.page) : 1
+  const search = typeof searchParams.q === 'string' ? searchParams.q : undefined
+  const limit = 20
+  const offset = (page - 1) * limit
+
+  const { collections, totalCount } = await getCollectionsAction({ search, limit, offset })
+  const totalPages = Math.ceil(totalCount / limit)
 
   return (
     <div className="space-y-6">
@@ -23,7 +34,13 @@ export default async function CollectionsPage() {
         </div>
       </div>
 
-      <CollectionsTable collections={collections} />
+      <CollectionsTable
+        collections={collections}
+        totalCount={totalCount}
+        currentPage={page}
+        totalPages={totalPages}
+        searchQuery={search || ""}
+      />
     </div>
   )
 }

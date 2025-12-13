@@ -2,12 +2,13 @@
 
 import * as db from "@/lib/products"
 
-export async function getProductsAction() {
+export async function getProductsAction(options: { search?: string; limit?: number; ids?: string[] } = {}) {
   try {
-    const products = await db.getProducts()
+    const products = await db.getProducts(options)
     return products
   } catch (error) {
-    console.error("Error fetching products:", error)
+    console.error("Error fetching products:", error instanceof Error ? error.message : String(error));
+    if (error instanceof Error && error.stack) console.error(error.stack);
     return []
   }
 }

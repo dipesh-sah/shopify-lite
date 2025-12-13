@@ -20,11 +20,11 @@ export async function getPromotionsAction(activeOnly: boolean = false) {
 
 export async function createPromotionAction(data: any) {
   try {
-    const id = await createPromotion()
+    const id = await createPromotion(data)
     return { success: true, id }
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error creating promotion:", error)
-    return { error: "Failed to create promotion" }
+    return { error: error.message || "Failed to create promotion" }
   }
 }
 

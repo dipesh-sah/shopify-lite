@@ -32,11 +32,11 @@ export default function NewProductPage() {
   useEffect(() => {
     async function loadData() {
       try {
-        const [cats, attrs] = await Promise.all([
+        const [catsRes, attrs] = await Promise.all([
           getCollectionsAction(),
           getAttributeGroupsAction()
         ])
-        setCategories(cats)
+        setCategories(catsRes.collections)
         setAttributeGroups(attrs)
       } catch (error) {
         console.error('Failed to load initial data:', error)

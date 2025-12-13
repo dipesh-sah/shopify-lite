@@ -3,12 +3,12 @@
 import { revalidatePath } from "next/cache"
 import * as db from "@/lib/collections"
 
-export async function getCollectionsAction() {
+export async function getCollectionsAction(options: { search?: string; limit?: number; offset?: number } = {}) {
   try {
-    return await db.getCollections()
+    return await db.getCollections(options)
   } catch (error) {
     console.error("Error getting collections:", error)
-    return []
+    return { collections: [], totalCount: 0 }
   }
 }
 

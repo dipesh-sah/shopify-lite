@@ -1,15 +1,16 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
+import { useRouter, usePathname, useSearchParams } from "next/navigation"
 import {
   MoreHorizontal,
   Plus,
   Search,
   Filter,
   ArrowUpDown,
-  ImageIcon
+  ImageIcon,
+  Trash2
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -38,27 +39,64 @@ interface Collection {
   conditions?: any[]
   type: 'manual' | 'smart'
   image?: string
+  productsCount?: number
 }
 
 interface CollectionsTableProps {
   collections: Collection[]
+  totalCount: number
+  currentPage: number
+  totalPages: number
+  searchQuery: string
 }
 
-export function CollectionsTable({ collections }: CollectionsTableProps) {
-  const router = useRouter()
-  const [selectedCollections, setSelectedCollections] = useState<string[]>([])
-  const [searchQuery, setSearchQuery] = useState("")
 
-  const filteredCollections = collections.filter(collection =>
-    collection.name.toLowerCase().includes(searchQuery.toLowerCase())
-  )
+export function CollectionsTable({ collections, totalCount, currentPage, totalPages, searchQuery: initialSearch }: CollectionsTableProps) {
+  const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+
+  const [selectedCollections, setSelectedCollections] = useState<string[]>([])
+  // We use local state for input to avoid lagging, but sync with URL on debounce
+  const [searchQuery, setSearchQuery] = useState(initialSearch)
+
+  // Sync state with URL params (e.g. back button)
+  useEffect(() => {
+    setSearchQuery(initialSearch)
+  }, [initialSearch])
+
+  // Debounced search effect
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      // Only push if the local state differs from the URL state (prop)
+      if (searchQuery !== initialSearch) {
+        const params = new URLSearchParams(searchParams.toString())
+        if (searchQuery) {
+          params.set('q', searchQuery)
+        } else {
+          params.delete('q')
+        }
+        params.set('page', '1') // Reset to page 1 on search
+        router.push(`${pathname}?${params.toString()}`)
+      }
+    }, 500)
+    return () => clearTimeout(timer)
+  }, [searchQuery, router, pathname, searchParams, initialSearch])
+
 
   const toggleSelectAll = () => {
-    if (selectedCollections.length === filteredCollections.length) {
+    // Select only visible collections
+    if (selectedCollections.length === collections.length) {
       setSelectedCollections([])
     } else {
-      setSelectedCollections(filteredCollections.map(c => c.id))
+      setSelectedCollections(collections.map(c => c.id))
     }
+  }
+
+  const handlePageChange = (page: number) => {
+    const params = new URLSearchParams(searchParams.toString())
+    params.set('page', page.toString())
+    router.push(`${pathname}?${params.toString()}`)
   }
 
   const toggleSelect = (id: string) => {
@@ -111,18 +149,18 @@ export function CollectionsTable({ collections }: CollectionsTableProps) {
             <TableRow className="bg-muted/50 hover:bg-muted/50">
               <TableHead className="w-[40px] pl-4">
                 <Checkbox
-                  checked={selectedCollections.length === filteredCollections.length && filteredCollections.length > 0}
+                  checked={collections.length > 0 && selectedCollections.length === collections.length}
                   onCheckedChange={toggleSelectAll}
                 />
               </TableHead>
-              <TableHead className="w-[80px]"></TableHead>
               <TableHead className="font-medium text-xs uppercase text-muted-foreground">Title</TableHead>
               <TableHead className="font-medium text-xs uppercase text-muted-foreground">Products</TableHead>
               <TableHead className="font-medium text-xs uppercase text-muted-foreground">Product conditions</TableHead>
+              <TableHead className="w-[50px]"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredCollections.map((collection) => (
+            {collections.map((collection) => (
               <TableRow key={collection.id} className="hover:bg-muted/50 group">
                 <TableCell className="pl-4">
                   <Checkbox
@@ -130,30 +168,19 @@ export function CollectionsTable({ collections }: CollectionsTableProps) {
                     onCheckedChange={() => toggleSelect(collection.id)}
                   />
                 </TableCell>
-                <TableCell>
-                  <div className="h-10 w-10 rounded-md border bg-muted overflow-hidden flex items-center justify-center">
-                    {collection.image ? (
-                      <img
-                        src={collection.image}
-                        alt={collection.name}
-                        className="h-full w-full object-cover"
-                      />
-                    ) : (
-                      <ImageIcon className="h-5 w-5 text-muted-foreground opacity-50" />
-                    )}
-                  </div>
-                </TableCell>
                 <TableCell className="font-medium">
                   <Link href={`/admin/collections/${collection.id}`} className="hover:underline text-sm font-semibold">
                     {collection.name}
                   </Link>
-                  <div className="text-xs text-muted-foreground truncate max-w-[300px]">
-                    {collection.description}
-                  </div>
+                  {collection.description && (
+                    <div className="text-xs text-muted-foreground truncate max-w-[300px]">
+                      {collection.description.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ')}
+                    </div>
+                  )}
                 </TableCell>
                 <TableCell>
                   <span className="text-sm text-muted-foreground">
-                    {collection.productIds?.length || 0}
+                    {collection.productsCount || 0}
                   </span>
                 </TableCell>
                 <TableCell className="text-sm text-muted-foreground">
@@ -167,9 +194,19 @@ export function CollectionsTable({ collections }: CollectionsTableProps) {
                     <span>Manual</span>
                   )}
                 </TableCell>
+                <TableCell>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                    onClick={() => handleDelete(collection.id)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </TableCell>
               </TableRow>
             ))}
-            {filteredCollections.length === 0 && (
+            {collections.length === 0 && (
               <TableRow>
                 <TableCell colSpan={5} className="h-24 text-center">
                   No collections found.
@@ -178,6 +215,34 @@ export function CollectionsTable({ collections }: CollectionsTableProps) {
             )}
           </TableBody>
         </Table>
+      </div>
+
+      {/* Pagination */}
+      <div className="flex items-center justify-between px-2">
+        <div className="text-sm text-muted-foreground">
+          Showing {collections.length} of {totalCount} collections
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => handlePageChange(currentPage - 1)}
+            disabled={currentPage <= 1}
+          >
+            Previous
+          </Button>
+          <div className="text-sm border px-3 py-1 rounded">
+            {currentPage} / {totalPages || 1}
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => handlePageChange(currentPage + 1)}
+            disabled={currentPage >= totalPages}
+          >
+            Next
+          </Button>
+        </div>
       </div>
     </div>
   )

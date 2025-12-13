@@ -51,8 +51,8 @@ export default function ProductDetailsPage({ params }: { params: Promise<{ id: s
 
       // Load categories
       try {
-        const cats = await getCollectionsAction()
-        setCategories(cats)
+        const { collections } = await getCollectionsAction()
+        setCategories(collections)
       } catch (error) {
         console.error('Failed to load categories:', error)
       } finally {

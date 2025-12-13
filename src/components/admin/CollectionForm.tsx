@@ -1,6 +1,7 @@
+
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import {
@@ -36,23 +37,25 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog"
-import { createCollectionAction, updateCollectionAction } from "@/actions/collections"
+import { updateCollectionAction, createCollectionAction } from "@/actions/collections"
+import { getProductsAction as fetchProducts } from "@/actions/products"
 import { ImagePicker } from "@/components/admin/ImagePicker"
+import { RichTextEditor } from "@/components/admin/RichTextEditor"
 import { cn } from "@/lib/utils"
 import { Product } from "@/lib/products"
 
 interface CollectionFormProps {
   collection?: any
-  availableProducts?: Product[]
+  initialSelectedProducts?: Product[]
 }
 
-export function CollectionForm({ collection, availableProducts = [] }: CollectionFormProps) {
+export function CollectionForm({ collection, initialSelectedProducts = [] }: CollectionFormProps) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [formData, setFormData] = useState({
     name: collection?.name || '',
     description: collection?.description || '',
-    slug: collection?.slug || '',
+    slug: (collection?.slug || '').replace(/^\/+/, ''),
     type: collection?.type || 'manual', // 'manual' | 'smart'
     productIds: collection?.productIds || [] as string[],
     isActive: collection?.isActive !== false, // default true
@@ -61,30 +64,60 @@ export function CollectionForm({ collection, availableProducts = [] }: Collectio
     seoDescription: collection?.seoDescription || '',
   })
 
+  // Selected Products Cache (starts with initial, adds more as we browse)
+  const [productsCache, setProductsCache] = useState<Record<string, Product>>(() => {
+    const cache: Record<string, Product> = {}
+    if (Array.isArray(initialSelectedProducts)) {
+      initialSelectedProducts.forEach(p => cache[p.id] = p)
+    }
+    return cache
+  })
+
+  // Update formData when productIds change to ensure we keep cache in sync if needed? 
+  // Actually we just need to render the selected ones.
+  const selectedProducts: Product[] = (formData.productIds as string[]).map(id => productsCache[id]).filter((p): p is Product => !!p)
+
   // Products UI state
-  const [productSearch, setProductSearch] = useState("")
+  const [productSearch, setProductSearch] = useState("") // For the main input (quick add) - functionality reduced or moved to browse
   const [isEditingSEO, setIsEditingSEO] = useState(false)
 
   // Browse modal state
   const [browseOpen, setBrowseOpen] = useState(false)
   const [browseSearch, setBrowseSearch] = useState("")
   const [browseSelected, setBrowseSelected] = useState<string[]>([])
+  const [browseSearchResults, setBrowseSearchResults] = useState<Product[]>([])
+  const [isSearching, setIsSearching] = useState(false)
 
-  // Safeguard availableProducts
-  const safeAvailableProducts = Array.isArray(availableProducts) ? availableProducts : []
+  // Debounced search for Browse Modal
+  useEffect(() => {
+    if (!browseOpen) return
 
-  const selectedProducts = safeAvailableProducts.filter(p => formData.productIds.includes(p.id))
+    // Initial load if empty
+    if (!browseSearch && browseSearchResults.length === 0) {
+      fetchProducts({ limit: 20 }).then(setBrowseSearchResults).catch(console.error)
+    }
 
-  // Dropdown search results
-  const filteredAvailableProducts = safeAvailableProducts.filter(p =>
-    !formData.productIds.includes(p.id) &&
-    p.title.toLowerCase().includes(productSearch.toLowerCase())
-  )
+    const timer = setTimeout(async () => {
+      setIsSearching(true)
+      try {
+        const results = await fetchProducts({ search: browseSearch, limit: 20 })
+        setBrowseSearchResults(results)
+        // Update cache with new results found
+        setProductsCache(prev => {
+          const next = { ...prev }
+          results.forEach(p => next[p.id] = p)
+          return next
+        })
+      } catch (err) {
+        console.error("Search failed", err)
+      } finally {
+        setIsSearching(false)
+      }
+    }, 300)
 
-  // Browse modal filtered list
-  const browseFilteredProducts = safeAvailableProducts.filter(p =>
-    p.title.toLowerCase().includes(browseSearch.toLowerCase())
-  )
+    return () => clearTimeout(timer)
+  }, [browseSearch, browseOpen])
+
 
   const handleSave = async () => {
     setLoading(true)
@@ -109,8 +142,13 @@ export function CollectionForm({ collection, availableProducts = [] }: Collectio
     }
   }
 
-  const addProduct = (id: string) => {
-    setFormData(prev => ({ ...prev, productIds: [...prev.productIds, id] }))
+  const addProduct = (productId: string) => {
+    setFormData(prev => {
+      if (!prev.productIds.includes(productId)) {
+        return { ...prev, productIds: [...prev.productIds, productId] }
+      }
+      return prev
+    })
   }
 
   const removeProduct = (id: string) => {
@@ -120,6 +158,10 @@ export function CollectionForm({ collection, availableProducts = [] }: Collectio
   const handleBrowseOpen = () => {
     setBrowseSelected([...formData.productIds])
     setBrowseOpen(true)
+    if (!browseSearch) {
+      // Trigger initial load logic via effect or manual
+      // Effect handles it
+    }
   }
 
   const handleBrowseSave = () => {
@@ -162,26 +204,42 @@ export function CollectionForm({ collection, availableProducts = [] }: Collectio
                 <label className="text-sm font-medium">Title</label>
                 <Input
                   value={formData.name}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, name: e.target.value })}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                    const name = e.target.value;
+                    const generateSlug = (txt: string) => txt.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+
+                    setFormData(prev => {
+                      const newSlug = generateSlug(name);
+                      // Normalize check: removing leading slashes just in case
+                      const currentSlugClean = prev.slug.replace(/^\/+/, '');
+                      const nameStub = generateSlug(prev.name);
+
+                      const currentSlugMatchesName = currentSlugClean === nameStub;
+
+                      // Update slug if:
+                      // 1. It's a new collection (!collection)
+                      // 2. The current slug is empty
+                      // 3. The current slug was already in sync with the name (smart update)
+                      const shouldUpdateSlug = !collection || !prev.slug || currentSlugMatchesName;
+
+                      return {
+                        ...prev,
+                        name,
+                        slug: shouldUpdateSlug ? newSlug : prev.slug,
+                        seoTitle: name
+                      };
+                    });
+                  }}
                   placeholder="e.g. Summer collection, Under $100, etc."
                 />
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium">Description</label>
-                <div className="border rounded-md">
-                  {/* Mock Toolbar */}
-                  <div className="flex items-center gap-1 p-2 border-b bg-muted/20">
-                    <Button variant="ghost" size="icon" className="h-7 w-7"><span className="font-bold text-xs">B</span></Button>
-                    <Button variant="ghost" size="icon" className="h-7 w-7"><span className="italic text-xs">I</span></Button>
-                    <Button variant="ghost" size="icon" className="h-7 w-7"><span className="underline text-xs">U</span></Button>
-                    <div className="w-px h-4 bg-border mx-1" />
-                    <Button variant="ghost" size="icon" className="h-7 w-7"><ImageIcon className="h-3 w-3" /></Button>
-                  </div>
-                  <Textarea
+                <div className="rounded-md">
+                  <RichTextEditor
                     value={formData.description}
-                    onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setFormData({ ...formData, description: e.target.value })}
-                    className="border-0 focus-visible:ring-0 min-h-[150px] resize-y rounded-t-none"
-                    placeholder=""
+                    onChange={(val) => setFormData(prev => ({ ...prev, description: val }))}
+                    className="min-h-[200px]"
                   />
                 </div>
               </div>
@@ -197,31 +255,13 @@ export function CollectionForm({ collection, availableProducts = [] }: Collectio
                 <div className="relative flex-1">
                   <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                   <Input
-                    placeholder="Search products"
+                    placeholder="Search products" // This input is now mostly visual or used for... disabling for now/using just as trigger
                     className="pl-8"
                     value={productSearch}
                     onChange={(e: React.ChangeEvent<HTMLInputElement>) => setProductSearch(e.target.value)}
+                    onClick={handleBrowseOpen} // Open browse on click for better UX now
+                    readOnly // Make it read-only to force modal usage for simplicity & performance
                   />
-                  {/* Simple dropdown for adding products if search is active and items found */}
-                  {productSearch && filteredAvailableProducts.length > 0 && (
-                    <div className="absolute z-10 w-full mt-1 bg-popover text-popover-foreground shadow-md rounded-md border py-1 max-h-60 overflow-auto">
-                      {filteredAvailableProducts.map(p => (
-                        <div
-                          key={p.id}
-                          className="px-3 py-2 hover:bg-muted cursor-pointer flex items-center gap-2"
-                          onClick={() => {
-                            addProduct(p.id)
-                            setProductSearch("")
-                          }}
-                        >
-                          <div className="h-8 w-8 rounded bg-muted flex items-center justify-center overflow-hidden">
-                            {p.images?.[0] ? <img src={p.images[0].url} className="h-full w-full object-cover" /> : <ImageIcon className="h-4 w-4 opacity-50" />}
-                          </div>
-                          <span>{p.title}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
                 </div>
                 <Button variant="outline" onClick={handleBrowseOpen}>Browse</Button>
                 <Select defaultValue="best-selling">
@@ -267,7 +307,7 @@ export function CollectionForm({ collection, availableProducts = [] }: Collectio
               </div>
             </CardContent>
             <div className="p-4 border-t text-center">
-              <Button variant="link" className="text-blue-600">Show more products</Button>
+              <Button variant="link" className="text-blue-600" onClick={handleBrowseOpen}>Show more products</Button>
             </div>
           </Card>
 
@@ -332,35 +372,7 @@ export function CollectionForm({ collection, availableProducts = [] }: Collectio
 
         {/* Sidebar Column */}
         <div className="space-y-6">
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold text-sm">Publishing</h3>
-                <Button variant="link" className="h-auto p-0 text-blue-600">Manage</Button>
-              </div>
-              <div className="space-y-3">
-                <div className="flex items-center gap-2">
-                  <div className="h-2 w-2 rounded-full bg-green-500" />
-                  <span className="text-sm font-medium">Online Store</span>
-                  <Globe className="h-3 w-3 text-muted-foreground ml-auto" />
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="h-2 w-2 rounded-full bg-green-500" />
-                  <span className="text-sm font-medium">Point of Sale</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="h-2 w-2 rounded-full bg-green-500" />
-                  <span className="text-sm font-medium">Shop</span>
-                </div>
-              </div>
-              <div className="mt-6 pt-4 border-t">
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <Calendar className="h-4 w-4" />
-                  <span className="text-xs">Schedule availability</span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+
 
           <Card>
             <CardHeader className="p-4 pb-2 flex flex-row items-center justify-between space-y-0">
@@ -389,22 +401,7 @@ export function CollectionForm({ collection, availableProducts = [] }: Collectio
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader className="p-4 pb-2">
-              <h3 className="font-semibold text-sm">Theme template</h3>
-            </CardHeader>
-            <CardContent className="p-4 pt-2">
-              <Select defaultValue="default-collection">
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="default-collection">Default collection</SelectItem>
-                  <SelectItem value="alternate">Alternate</SelectItem>
-                </SelectContent>
-              </Select>
-            </CardContent>
-          </Card>
+
         </div>
       </div>
 
@@ -422,9 +419,10 @@ export function CollectionForm({ collection, availableProducts = [] }: Collectio
                 value={browseSearch}
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => setBrowseSearch(e.target.value)}
               />
+              {isSearching && <div className="absolute right-3 top-2.5 h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>}
             </div>
             <div className="border rounded-md h-[400px] overflow-y-auto divide-y">
-              {browseFilteredProducts.map(p => (
+              {browseSearchResults.map(p => (
                 <div key={p.id} className="flex items-center gap-3 p-3 hover:bg-muted/50">
                   <Checkbox
                     checked={browseSelected.includes(p.id)}
@@ -439,7 +437,7 @@ export function CollectionForm({ collection, availableProducts = [] }: Collectio
                   </Badge>
                 </div>
               ))}
-              {browseFilteredProducts.length === 0 && (
+              {!isSearching && browseSearchResults.length === 0 && (
                 <div className="h-full flex flex-col items-center justify-center text-muted-foreground space-y-2">
                   <span className="text-sm">No products found</span>
                 </div>

@@ -41,23 +41,81 @@ export async function createCollection(data: {
   const collectionId = result.insertId;
 
   if (data.type === 'manual' && data.productIds && data.productIds.length > 0) {
-    // Insert product associations
-    // Note: productIds are strings in the interface but INT in DB. Assuming they can be parsed.
-    // If productIds are UUIDs or other strings, schema needs adjustment. Assuming INT IDs for MySQL.
+    // Batch Insert product associations
+    const insertValues: any[] = [];
+    const placeholders: string[] = [];
+
     for (const productId of data.productIds) {
+      placeholders.push('(?, ?)');
+      insertValues.push(collectionId, productId);
+    }
+
+    if (placeholders.length > 0) {
       await execute(
-        `INSERT IGNORE INTO product_categories (category_id, product_id) VALUES (?, ?)`,
-        [collectionId, productId]
+        `INSERT IGNORE INTO product_categories (category_id, product_id) VALUES ${placeholders.join(', ')}`,
+        insertValues
       );
     }
+
+    // Batch Update main category_id
+    // Note: execute doesn't support 'WHERE id IN (?)' with array param correctly in generic pool.execute unless expanded
+    // We need to manually expand placeholders for IN clause
+    const inPlaceholders = data.productIds.map(() => '?').join(', ');
+    const updateParams = [collectionId, ...data.productIds];
+
+    await execute(
+      `UPDATE products SET category_id = ? WHERE id IN (${inPlaceholders}) AND category_id IS NULL`,
+      updateParams
+    );
   }
 
   return collectionId.toString();
 }
 
-export async function getCollections() {
-  const rows = await query('SELECT * FROM categories WHERE parent_id IS NULL ORDER BY created_at DESC');
-  return rows.map(mapCollectionFromDb);
+export async function getCollections(options: { search?: string; limit?: number; offset?: number } = {}) {
+  let whereClause = 'WHERE c.parent_id IS NULL';
+  const params: any[] = [];
+
+  if (options.search) {
+    whereClause += ' AND c.name LIKE ?';
+    params.push(`%${options.search}%`);
+  }
+
+  // Get total count first (simplified query)
+  const countResult = await query(
+    `SELECT COUNT(*) as total FROM categories c ${whereClause}`,
+    params
+  );
+  const totalCount = countResult[0]?.total || 0;
+
+  let sql = `
+    SELECT c.*, COUNT(pc.product_id) as product_count 
+    FROM categories c 
+    LEFT JOIN product_categories pc ON c.id = pc.category_id 
+    ${whereClause}
+    GROUP BY c.id 
+    ORDER BY c.created_at DESC
+  `;
+
+  if (options.limit) {
+    sql += ' LIMIT ?';
+    params.push(options.limit);
+  }
+
+  if (options.offset) {
+    sql += ' OFFSET ?';
+    params.push(options.offset);
+  }
+
+  const rows = await query(sql, params);
+
+  return {
+    collections: rows.map((row: any) => ({
+      ...mapCollectionFromDb(row),
+      productsCount: row.product_count || 0
+    })),
+    totalCount
+  };
 }
 
 export async function getSubcategories(parentId: string) {
@@ -78,7 +136,14 @@ export async function getActiveCollections() {
 export async function getCollection(id: string) {
   const rows = await query('SELECT * FROM categories WHERE id = ?', [id]);
   if (rows.length === 0) return null;
-  return mapCollectionFromDb(rows[0]);
+
+  const collection = mapCollectionFromDb(rows[0]);
+
+  // Fetch associated product IDs
+  const productRows = await query('SELECT product_id FROM product_categories WHERE category_id = ?', [id]);
+  collection.productIds = productRows.map((r: any) => r.product_id.toString());
+
+  return collection;
 }
 
 export async function getCollectionBySlug(slug: string) {
@@ -121,10 +186,31 @@ export async function updateCollection(id: string, data: Partial<{
   if (data.productIds !== undefined && data.type === 'manual') {
     // Replace all associations
     await execute('DELETE FROM product_categories WHERE category_id = ?', [id]);
-    for (const productId of data.productIds) {
+
+    if (data.productIds.length > 0) {
+      // Batch Insert
+      const insertValues: any[] = [];
+      const placeholders: string[] = [];
+
+      for (const productId of data.productIds) {
+        placeholders.push('(?, ?)');
+        insertValues.push(id, productId);
+      }
+
+      if (placeholders.length > 0) {
+        await execute(
+          `INSERT IGNORE INTO product_categories (category_id, product_id) VALUES ${placeholders.join(', ')}`,
+          insertValues
+        );
+      }
+
+      // Batch Update
+      const inPlaceholders = data.productIds.map(() => '?').join(', ');
+      const updateParams = [id, ...data.productIds];
+
       await execute(
-        `INSERT IGNORE INTO product_categories (category_id, product_id) VALUES (?, ?)`,
-        [id, productId]
+        `UPDATE products SET category_id = ? WHERE id IN (${inPlaceholders})`,
+        updateParams
       );
     }
   }
@@ -144,6 +230,7 @@ export async function addProductToCollection(collectionId: string, productId: st
     `INSERT IGNORE INTO product_categories (category_id, product_id) VALUES (?, ?)`,
     [collectionId, productId]
   );
+  await execute('UPDATE products SET category_id = ? WHERE id = ?', [collectionId, productId]);
 }
 
 export async function removeProductFromCollection(collectionId: string, productId: string) {
@@ -171,6 +258,6 @@ function mapCollectionFromDb(row: any) {
     // productIds would need a separate query if needed eagerly, but usually fetched separately or joined
     // For compatibility, we might return empty array or fetch if critical.
     // Leaving empty for now to avoid N+1 queries in list views.
-    productIds: []
+    productIds: [] as string[]
   };
 }
