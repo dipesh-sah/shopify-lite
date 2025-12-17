@@ -9,6 +9,8 @@ import { getTaxClassesAction } from "@/actions/tax"
 import { showToast } from '@/components/ui/Toast'
 import { Button } from "@/components/ui/button"
 import Spinner from '@/components/ui/Spinner'
+import { RichTextEditor } from "@/components/admin/RichTextEditor"
+import { TagInput } from "@/components/admin/TagInput"
 import { ImagePicker } from "@/components/admin/ImagePicker"
 import { MultiSelect } from "@/components/ui/multi-select"
 import { ProductOptions } from "@/components/admin/ProductOptions"
@@ -20,7 +22,7 @@ export default function ProductDetailsPage({ params }: { params: Promise<{ id: s
   const [loading, setLoading] = useState(false)
   const [product, setProduct] = useState<any>(null)
   const [images, setImages] = useState<string[]>([])
-  // const [tags, setTags] = useState<string[]>([]) // Tags removed per request
+  const [tags, setTags] = useState<string[]>([])
   const [productId, setProductId] = useState<string>("")
   const [categories, setCategories] = useState<any[]>([])
   const [categoriesLoading, setCategoriesLoading] = useState(true)
@@ -28,6 +30,7 @@ export default function ProductDetailsPage({ params }: { params: Promise<{ id: s
   const [subsLoading, setSubsLoading] = useState(false)
   const [selectedCollections, setSelectedCollections] = useState<string[]>([])
   const [taxClasses, setTaxClasses] = useState<any[]>([])
+  const [description, setDescription] = useState("")
 
   // New Variant System State
   const [options, setOptions] = useState<any[]>([])
@@ -47,7 +50,8 @@ export default function ProductDetailsPage({ params }: { params: Promise<{ id: s
         const productData = data as any
         setProduct(productData)
         setImages(productData.images?.map((img: any) => img.url) || [])
-        // setTags(productData.tags || [])
+        setTags(productData.tags || [])
+        setDescription(productData.description || "")
         setSelectedCollections(productData.collectionIds || [])
 
         const existingVariants = (productData.variants || []).map((v: any) => ({
@@ -300,14 +304,16 @@ export default function ProductDetailsPage({ params }: { params: Promise<{ id: s
               <label htmlFor="description" className="block text-sm font-medium mb-2">
                 Description *
               </label>
-              <textarea
-                id="description"
-                name="description"
-                required
-                rows={4}
-                defaultValue={product.description}
-                className="w-full px-3 py-2 border rounded-md"
+              <RichTextEditor
+                value={description}
+                onChange={setDescription}
+                placeholder="Product description..."
               />
+            </div>
+
+            <div className="space-y-4 pt-4">
+              <label className="block text-sm font-medium">Tags</label>
+              <TagInput tags={tags} onChange={setTags} />
             </div>
 
             <div className="grid grid-cols-2 gap-4">

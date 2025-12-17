@@ -1,6 +1,6 @@
 "use server"
 
-import { getAllImages, updateImage, deleteImage, createImage } from "@/lib/firestore"
+import { getAllImages, updateImage, deleteImage, createImage } from "@/lib/media"
 
 export async function getImagesAction() {
   try {

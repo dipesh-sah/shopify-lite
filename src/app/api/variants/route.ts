@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import * as firestore from '@/lib/firestore'
+import * as products from '@/lib/products'
 
 export async function POST(request: Request) {
   try {
@@ -17,7 +17,7 @@ export async function POST(request: Request) {
     if (mediaIds !== undefined) update.mediaIds = Array.isArray(mediaIds) ? mediaIds : []
     if (options !== undefined) update.options = options
 
-    await firestore.updateVariantOnProduct(productId, variantId, update)
+    await products.updateVariantOnProduct(productId, variantId, update)
 
     return NextResponse.json({ success: true })
   } catch (err: any) {

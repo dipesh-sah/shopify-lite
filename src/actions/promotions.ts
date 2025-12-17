@@ -6,7 +6,7 @@ import {
   updatePromotion,
   deletePromotion,
   getPromotionByCode
-} from "@/lib/firestore"
+} from "@/lib/promotions"
 
 export async function getPromotionsAction(activeOnly: boolean = false) {
   try {

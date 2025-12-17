@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { getProducts } from '@/lib/firestore'
+import { getProducts } from '@/lib/products'
 
 function escapeCsv(value: any) {
   if (value === null || value === undefined) return ''
@@ -18,7 +18,8 @@ export async function GET(request: Request) {
     const lowStock = params.get('lowStock') === '1'
     const threshold = params.has('threshold') ? parseInt(params.get('threshold') || '0') : undefined
 
-    let products = await getProducts()
+    const { products: allProducts } = await getProducts()
+    let products = allProducts
     if (categoryId) {
       products = products.filter((p: any) => p.categoryId === categoryId)
     }

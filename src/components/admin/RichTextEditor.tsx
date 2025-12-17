@@ -70,15 +70,22 @@ export function RichTextEditor({ value, onChange, placeholder, className }: Rich
   }, [])
 
   useEffect(() => {
-    if (contentRef.current && contentRef.current.innerHTML !== value) {
-      if (document.activeElement === contentRef.current) return;
-      contentRef.current.innerHTML = value
+    if (contentRef.current) {
+      // Only update if content is significantly different to avoid cursor jumps
+      // Simple string compare is okay if external value changes (e.g. load from DB)
+      // Check active element to avoid overwriting while typing
+      if (document.activeElement !== contentRef.current && contentRef.current.innerHTML !== value) {
+        contentRef.current.innerHTML = value
+      }
     }
   }, [value])
 
   const handleInput = () => {
     if (contentRef.current) {
-      onChange(contentRef.current.innerHTML)
+      const html = contentRef.current.innerHTML
+      if (html !== value) {
+        onChange(html)
+      }
     }
   }
 

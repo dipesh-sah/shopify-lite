@@ -17,7 +17,8 @@ import {
   ChevronDown,
   Image,
   Star,
-  Store
+  Store,
+  LogOut
 } from "lucide-react"
 
 interface SidebarItem {
@@ -56,11 +57,23 @@ const sidebarItems: SidebarItem[] = [
 
 import { SettingsModal } from "./SettingsModal"
 
-export function AdminSidebar() {
+import { logoutAction } from "@/actions/auth"
+import { useRouter } from "next/navigation"
+
+interface SidebarProps extends React.HTMLAttributes<HTMLDivElement> { }
+
+export function AdminSidebar({ className }: SidebarProps) {
   const pathname = usePathname()
+  const router = useRouter()
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
 
+  const handleLogout = async () => {
+    await logoutAction()
+    router.push('/admin/login')
+  }
+
   const renderItem = (item: SidebarItem) => {
+    // ... (keep existing renderItem implementation)
     const isActive = pathname === item.href || (item.href !== '/admin' && pathname.startsWith(item.href))
     const isParentActive = item.children?.some(child => pathname.startsWith(child.href)) || isActive
 
@@ -71,20 +84,20 @@ export function AdminSidebar() {
           className={cn(
             "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors",
             isParentActive
-              ? "bg-muted text-primary"
+              ? "bg-primary/10 text-primary"
               : "text-muted-foreground hover:bg-muted/50 hover:text-primary"
           )}
         >
           {item.icon && <item.icon className="h-4 w-4" />}
           <span className="flex-1">{item.label}</span>
           {item.badge && (
-            <span className="bg-muted-foreground/20 text-muted-foreground text-xs px-1.5 py-0.5 rounded-full">
+            <span className="bg-primary/10 text-primary text-xs px-1.5 py-0.5 rounded-full font-bold">
               {item.badge}
             </span>
           )}
         </Link>
         {item.children && isParentActive && (
-          <ul className="ml-9 mt-1 space-y-1">
+          <ul className="ml-9 mt-1 space-y-1 border-l pl-2">
             {item.children.map(child => {
               const isChildActive = pathname === child.href
               return (
@@ -94,7 +107,7 @@ export function AdminSidebar() {
                     className={cn(
                       "block px-3 py-2 rounded-md text-sm font-medium transition-colors hover:text-primary",
                       isChildActive
-                        ? "text-primary bg-muted/50"
+                        ? "text-primary font-bold"
                         : "text-muted-foreground"
                     )}
                   >
@@ -110,19 +123,19 @@ export function AdminSidebar() {
   }
 
   return (
-    <aside className="w-64 border-r bg-card h-full flex flex-col">
-      <div className="p-6 border-b">
-        <Link href="/admin" className="flex items-center gap-2 font-bold text-xl">
-          <ShoppingBag className="h-6 w-6" />
-          <span>Shopify Lite</span>
-        </Link>
+    <aside className={cn("border-r bg-card h-full flex flex-col", className)}>
+      <div className="p-6 border-b flex items-center gap-2">
+        <div className="h-8 w-8 bg-primary rounded-lg flex items-center justify-center text-primary-foreground">
+          <ShoppingBag className="h-5 w-5" />
+        </div>
+        <span className="font-bold text-xl tracking-tight">Shopify Lite</span>
       </div>
       <nav className="flex-1 overflow-y-auto py-4">
         <ul className="space-y-1 px-3">
           {sidebarItems.map(renderItem)}
         </ul>
       </nav>
-      <div className="p-4 border-t space-y-1">
+      <div className="p-4 border-t bg-muted/10 space-y-1">
         <a
           href="/"
           target="_blank"
@@ -142,6 +155,15 @@ export function AdminSidebar() {
         >
           <Settings className="h-4 w-4" />
           <span>Settings</span>
+        </button>
+        <button
+          onClick={handleLogout}
+          className={cn(
+            "w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors text-red-600 hover:bg-red-50"
+          )}
+        >
+          <LogOut className="h-4 w-4" />
+          <span>Logout</span>
         </button>
       </div>
 

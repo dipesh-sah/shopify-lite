@@ -1,6 +1,6 @@
 "use server"
 
-import { updateProduct, updateVariantOnProduct } from "@/lib/firestore" // shim maps to lib/products
+import { updateProduct, updateVariantOnProduct } from "@/lib/products"
 import { revalidatePath } from "next/cache"
 
 export type InventoryUpdate = {

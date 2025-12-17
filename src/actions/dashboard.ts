@@ -10,7 +10,9 @@ export async function getDashboardStatsAction() {
       ordersResult,
       productsResult,
       pendingOrdersResult,
-      recentOrdersResult
+      recentOrdersResult,
+      lowStockResult,
+      topCustomersResult
     ] = await Promise.all([
       query("SELECT SUM(total) as total FROM orders WHERE payment_status = 'paid'"),
       query("SELECT COUNT(*) as count FROM orders"),
@@ -20,6 +22,21 @@ export async function getDashboardStatsAction() {
         SELECT id, total, created_at, status, customer_email, shipping_first_name, shipping_last_name 
         FROM orders 
         ORDER BY created_at DESC 
+        LIMIT 5
+      `),
+      query(`
+        SELECT id, title, quantity as inventory_quantity 
+        FROM products 
+        WHERE quantity < 10 
+        ORDER BY quantity ASC 
+        LIMIT 5
+      `),
+      query(`
+        SELECT customer_email, MAX(shipping_first_name) as shipping_first_name, MAX(shipping_last_name) as shipping_last_name, COUNT(*) as order_count, SUM(total) as total_spent
+        FROM orders
+        WHERE payment_status = 'paid'
+        GROUP BY customer_email
+        ORDER BY total_spent DESC
         LIMIT 5
       `)
     ]);
@@ -38,6 +55,17 @@ export async function getDashboardStatsAction() {
           ? `${o.shipping_first_name} ${o.shipping_last_name}`
           : o.customer_email,
         createdAt: o.created_at
+      })),
+      inventoryAlerts: lowStockResult.map((p: any) => ({
+        id: p.id,
+        title: p.title,
+        stock: p.inventory_quantity
+      })),
+      topCustomers: topCustomersResult.map((c: any) => ({
+        email: c.customer_email,
+        name: c.shipping_first_name ? `${c.shipping_first_name} ${c.shipping_last_name}` : c.customer_email,
+        orders: c.order_count,
+        totalSpent: Number(c.total_spent)
       }))
     };
   } catch (error) {

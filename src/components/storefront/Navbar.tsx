@@ -1,10 +1,10 @@
-import { getActiveCategories, getActiveSubcategories } from '@/lib/firestore'
+import { getActiveCollections, getAllSubcategories as getActiveSubcategories } from '@/lib/collections'
 import { NavbarClient } from './NavbarClient'
 import { AuthStatus } from './AuthStatus'
 
 export async function Navbar() {
   const [categories, subcategories] = await Promise.all([
-    getActiveCategories(),
+    getActiveCollections(),
     getActiveSubcategories()
   ])
 

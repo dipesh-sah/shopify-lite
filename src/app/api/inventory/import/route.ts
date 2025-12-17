@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import * as firestore from '@/lib/firestore'
+import * as products from '@/lib/products'
 
 export async function POST(request: Request) {
   try {
@@ -17,7 +17,7 @@ export async function POST(request: Request) {
       errors: [] as string[],
     }
 
-    // First line is header: productId,variantId,sku,stock
+    // First line is header: productId,variantId,stock
     for (let i = 1; i < lines.length; i++) {
       const line = lines[i].trim()
       if (!line) continue
@@ -42,16 +42,17 @@ export async function POST(request: Request) {
       try {
         if (variantId) {
           // Update variant stock
-          await firestore.updateVariantOnProduct(productId, variantId, { inventoryQuantity: stock })
+          await products.updateVariantOnProduct(productId, variantId, { inventoryQuantity: stock })
         } else {
-          // Update product stock
-          const product = await firestore.getProduct(productId)
+          // Update product main stock
+          // Check if product exists first? Optional but safer
+          const product = await products.getProduct(productId)
           if (!product) {
             results.errors.push(`Line ${i + 1}: Product ${productId} not found`)
             results.failed++
             continue
           }
-          await firestore.updateProduct(productId, { quantity: stock })
+          await products.updateProduct(productId, { quantity: stock })
         }
         results.success++
       } catch (err: any) {

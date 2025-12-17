@@ -226,6 +226,54 @@ export async function getProducts(options: {
   }
 }
 
+
+// Helper to Get Tags
+async function getProductTags(productId: string): Promise<string[]> {
+  const rows = await query(`
+    SELECT t.name 
+    FROM product_tags pt 
+    JOIN tags t ON pt.tag_id = t.id 
+    WHERE pt.product_id = ?
+  `, [productId]);
+  return rows.map((r: any) => r.name);
+}
+
+// Helper to Ensure Tags Exist and Link them
+async function syncProductTags(productId: string, tags: string[]) {
+  if (!tags) return;
+
+  // 1. Clear existing links
+  await execute('DELETE FROM product_tags WHERE product_id = ?', [productId]);
+
+  if (tags.length === 0) return;
+
+  const validTagIds: string[] = [];
+
+  for (const tagName of tags) {
+    const cleanName = tagName.trim();
+    if (!cleanName) continue;
+    const slug = cleanName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+    let tagId = `tag-${slug}`;
+
+    // Check if exists by slug/name to get actual ID (if ID generation changed or legacy)
+    const existing = await query('SELECT id FROM tags WHERE slug = ? OR name = ?', [slug, cleanName]);
+
+    if (existing.length > 0) {
+      tagId = existing[0].id;
+    } else {
+      // Create new
+      await execute('INSERT INTO tags (id, name, slug) VALUES (?, ?, ?)', [tagId, cleanName, slug]);
+    }
+    validTagIds.push(tagId);
+  }
+
+  // 2. Insert new links
+  for (const tid of validTagIds) {
+    await execute('INSERT IGNORE INTO product_tags (product_id, tag_id) VALUES (?, ?)', [productId, tid]);
+  }
+}
+
+
 export async function getProduct(id: string) {
   const rows = await query(`
     SELECT p.*, c.name as category_name 
@@ -237,7 +285,12 @@ export async function getProduct(id: string) {
 
   const images = await getProductImages(id);
   const collectionIds = await getProductCollectionIds(id);
+
+  // Fetch tags from relation
+  const tags = await getProductTags(id);
+
   const product = mapProductFromDb(rows[0], images, collectionIds);
+  product.tags = tags; // Override CSV value
 
   // also fetch variants
   const variantRows = await query('SELECT * FROM product_variants WHERE product_id = ?', [id]);
@@ -261,12 +314,13 @@ export async function getProduct(id: string) {
 }
 
 export async function createProduct(data: Omit<Product, 'id' | 'createdAt' | 'updatedAt' | 'images' | 'categoryName'> & { images?: { url: string; altText?: string }[] }) {
-  const tagsString = data.tags && data.tags.length > 0 ? data.tags.join(',') : null;
-
   // Use first collection as legacy category_id if provided
   const mainCategoryId = data.collectionIds && data.collectionIds.length > 0 ? data.collectionIds[0] : (data.categoryId || null);
 
   const productNumber = await generateNextNumber('product');
+
+  // Note: We still save tags as CSV in 'tags' column for cache/simple search compatibility
+  const tagsString = data.tags && data.tags.length > 0 ? data.tags.join(',') : null;
 
   const params = [
     data.title,
@@ -300,6 +354,11 @@ export async function createProduct(data: Omit<Product, 'id' | 'createdAt' | 'up
   );
 
   const productId = result.insertId.toString();
+
+  // Sync relational tags
+  if (data.tags) {
+    await syncProductTags(productId, data.tags);
+  }
 
   // Insert collections
   if (data.collectionIds && data.collectionIds.length > 0) {
@@ -396,6 +455,7 @@ export async function updateProduct(id: string, data: Partial<Product>) {
   addUpdate('product_type', data.productType);
   addUpdate('tax_class_id', data.taxClassId);
 
+  // Still update the CSV column
   if (data.tags !== undefined) {
     addUpdate('tags', data.tags ? data.tags.join(',') : null);
   }
@@ -404,6 +464,10 @@ export async function updateProduct(id: string, data: Partial<Product>) {
     updates.push('updated_at = NOW()');
     values.push(id);
     await execute(`UPDATE products SET ${updates.join(', ')} WHERE id = ?`, values);
+  }
+
+  if (data.tags !== undefined) {
+    await syncProductTags(id, data.tags);
   }
 
   // Create Redirect if slug changed

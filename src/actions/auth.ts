@@ -1,6 +1,6 @@
 'use server';
 
-import { createSession, createTemp2FASession, verifyPassword, deleteSession } from "@/lib/auth";
+import { createSession, createTemp2FASession, verifyPassword, deleteSession, verifySession } from "@/lib/auth";
 import { query } from "@/lib/db";
 import { send2FAEmail } from "@/lib/email";
 import { redirect } from "next/navigation";
@@ -70,7 +70,14 @@ export async function loginAction(prevState: any, formData: FormData) {
   redirect('/admin');
 }
 
+
 export async function logoutAction() {
   await deleteSession();
   redirect('/admin/login');
 }
+
+export async function getMeAction() {
+  const user = await verifySession();
+  return user ? { id: user.id, email: user.email, name: `${user.firstName} ${user.lastName}` } : null;
+}
+

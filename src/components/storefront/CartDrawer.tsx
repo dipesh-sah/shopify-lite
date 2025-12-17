@@ -67,14 +67,14 @@ export function CartDrawer() {
                           <div className="flex items-center border rounded-md">
                             <button
                               className="px-2 py-1 hover:bg-muted"
-                              onClick={() => updateQuantity(item.product.id, Math.max(0, item.quantity - 1))}
+                              onClick={() => updateQuantity(item.product.id, Math.max(0, item.quantity - 1), item.variantId)}
                             >
                               <Minus className="h-3 w-3" />
                             </button>
                             <span className="w-8 text-center">{item.quantity}</span>
                             <button
                               className="px-2 py-1 hover:bg-muted"
-                              onClick={() => updateQuantity(item.product.id, item.quantity + 1)}
+                              onClick={() => updateQuantity(item.product.id, item.quantity + 1, item.variantId)}
                             >
                               <Plus className="h-3 w-3" />
                             </button>
@@ -82,7 +82,7 @@ export function CartDrawer() {
                           <button
                             type="button"
                             className="font-medium text-red-600 hover:text-red-500 flex items-center gap-1"
-                            onClick={() => removeItem(item.product.id)}
+                            onClick={() => removeItem(item.product.id, item.variantId)}
                           >
                             <Trash2 className="h-4 w-4" />
                           </button>
