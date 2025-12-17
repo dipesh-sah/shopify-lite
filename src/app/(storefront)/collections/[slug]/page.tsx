@@ -2,8 +2,9 @@ import { getCollectionBySlug } from '@/lib/collections';
 import { getProducts } from '@/lib/products';
 import { ProductCard } from '@/components/storefront/ProductCard';
 
-export default async function CollectionPage({ params }: { params: { slug: string } }) {
-  const collection = await getCollectionBySlug(params.slug);
+export default async function CollectionPage({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
+  const collection = await getCollectionBySlug(slug);
 
   if (!collection) {
     return (

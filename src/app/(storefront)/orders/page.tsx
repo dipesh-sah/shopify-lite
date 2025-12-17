@@ -15,6 +15,8 @@ interface Order {
   createdAt: any
   items: Array<{
     productId: string
+    name?: string
+    image?: string
     quantity: number
     price: number
   }>
@@ -35,16 +37,25 @@ export default function OrdersPage() {
       return
     }
 
-    if (user?.uid) {
+    if (user?.id) {
       loadOrders()
     }
   }, [user, loading, router])
 
   const loadOrders = async () => {
+    if (!user?.id) return
+
     try {
       setIsLoading(true)
-      const data = await getCustomerOrdersAction(undefined, user?.uid)
-      setOrders(data as Order[])
+      const data = await getCustomerOrdersAction(undefined, user.id)
+
+      if (Array.isArray(data)) {
+        setOrders(data)
+      } else {
+        console.error('Invalid orders data received:', data)
+        setOrders([])
+        setError('Received invalid data from server.')
+      }
     } catch (err) {
       console.error('Failed to load orders:', err)
       setError('Failed to load orders. Please try again.')
@@ -53,7 +64,18 @@ export default function OrdersPage() {
     }
   }
 
-  if (loading || isLoading) {
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+          <p className="text-muted-foreground">Initializing session...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center space-y-4">
@@ -142,8 +164,8 @@ export default function OrdersPage() {
                     <div className="text-right">
                       <p className="text-sm text-muted-foreground mb-1">Order Date</p>
                       <p className="font-medium">
-                        {order.createdAt?.toDate
-                          ? order.createdAt.toDate().toLocaleDateString('en-US', {
+                        {order.createdAt
+                          ? new Date(order.createdAt).toLocaleDateString('en-US', {
                             year: 'numeric',
                             month: 'short',
                             day: 'numeric',
@@ -160,10 +182,26 @@ export default function OrdersPage() {
                   <div className="space-y-3">
                     {order.items && order.items.length > 0 ? (
                       order.items.map((item, index) => (
-                        <div key={index} className="flex justify-between items-center text-sm">
-                          <div>
-                            <p className="font-medium">Product ID: {item.productId}</p>
-                            <p className="text-muted-foreground text-xs">Quantity: {item.quantity}</p>
+                        <div key={index} className="flex gap-4 items-center text-sm py-2">
+                          {/* Image */}
+                          <div className="h-12 w-12 flex-shrink-0 overflow-hidden rounded-md border bg-muted">
+                            {item.image ? (
+                              <img
+                                src={item.image}
+                                alt={item.name || 'Product'}
+                                className="h-full w-full object-cover"
+                              />
+                            ) : (
+                              <div className="flex h-full w-full items-center justify-center bg-muted">
+                                <Package className="h-4 w-4 text-muted-foreground" />
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Details */}
+                          <div className="flex-1">
+                            <p className="font-medium line-clamp-1">{item.name || `Product ID: ${item.productId}`}</p>
+                            <p className="text-muted-foreground text-xs">Qty: {item.quantity}</p>
                           </div>
                           <p className="font-semibold">${Number(item.price * item.quantity).toFixed(2)}</p>
                         </div>

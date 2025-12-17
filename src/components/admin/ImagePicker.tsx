@@ -3,18 +3,16 @@
 import { useState, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { showToast } from "@/components/ui/Toast"
-import { Upload, X, Image as ImageIcon } from "lucide-react"
+import { Upload, X, Image as ImageIcon, Plus } from "lucide-react"
 
 interface ImagePickerProps {
   images: string[]
   onChange: (images: string[]) => void
-  maxImages?: number
 }
 
 export function ImagePicker({
   images,
   onChange,
-  maxImages = 5,
 }: ImagePickerProps) {
   const [uploading, setUploading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -29,8 +27,6 @@ export function ImagePicker({
       const uploadedImages: string[] = []
 
       for (const file of Array.from(files)) {
-        if (images.length + uploadedImages.length >= maxImages) break
-
         const formData = new FormData()
         formData.append("file", file)
 
@@ -57,7 +53,7 @@ export function ImagePicker({
 
   const handleUrlAdd = () => {
     const url = prompt("Enter image URL:")
-    if (url && images.length < maxImages) {
+    if (url) {
       onChange([...images, url])
     }
   }
@@ -67,90 +63,110 @@ export function ImagePicker({
   }
 
   return (
-    <div className="space-y-4 w-full">
-      <div className="grid gap-4">
-        {images.length > 0 && (
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            {images.map((img, index) => (
-              <div key={index} className="relative group aspect-square">
-                <img
-                  src={img}
-                  className="w-full h-full object-cover rounded-lg border bg-muted"
-                  alt={`Image ${index + 1}`}
-                />
-                <button
-                  type="button"
-                  onClick={() => removeImage(index)}
-                  className="absolute top-1 right-1 bg-destructive text-destructive-foreground w-6 h-6 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition shadow-sm"
-                >
-                  <X className="h-3 w-3" />
-                </button>
-                {index === 0 && (
-                  <div className="absolute bottom-1 left-1 bg-black/60 text-white text-[10px] px-2 py-0.5 rounded-full backdrop-blur-sm">
-                    Main
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
+    <div className="w-full">
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        multiple
+        onChange={handleFileSelect}
+        className="hidden"
+      />
 
-        {images.length < maxImages && (
-          <div
-            className={`flex flex-col items-center justify-center p-6 border-2 border-dashed rounded-lg hover:bg-muted/50 transition-colors ${images.length > 0 ? 'h-32' : 'h-full min-h-[200px]'}`}
-            onDragOver={(e) => e.preventDefault()}
-            onDrop={(e) => {
-              e.preventDefault();
-              // Rudimentary drag-drop hint - implementation would require state update
-            }}
-          >
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              multiple
-              onChange={handleFileSelect}
-              className="hidden"
+      <div className="grid grid-cols-2 text-center md:grid-cols-4 lg:grid-cols-5 gap-4">
+        {images.map((img, index) => (
+          <div key={index} className="relative group aspect-square rounded-lg border bg-muted overflow-hidden">
+            <img
+              src={img}
+              className="w-full h-full object-contain transition-transform group-hover:scale-105"
+              alt={`Product image ${index + 1}`}
             />
 
-            <div className="flex flex-col items-center gap-2 text-center">
-              <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center mb-2">
-                <Upload className="h-5 w-5 text-muted-foreground" />
-              </div>
-              <div className="flex flex-col gap-1">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  className="text-primary hover:text-primary/90 hover:bg-transparent p-0 h-auto font-semibold"
-                  disabled={uploading}
-                  onClick={() => fileInputRef.current?.click()}
-                >
-                  {uploading ? "Uploading..." : "Upload images"}
-                </Button>
-                <span className="text-xs text-muted-foreground">or drag and drop</span>
-              </div>
+            {/* Overlay */}
+            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
 
-              <div className="flex items-center gap-2 mt-4">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={handleUrlAdd}
-                  disabled={images.length >= maxImages}
-                  className="text-xs h-8"
-                >
-                  <ImageIcon className="h-3 w-3 mr-2" />
-                  Add from URL
-                </Button>
-              </div>
+            <button
+              type="button"
+              onClick={() => removeImage(index)}
+              className="absolute top-2 right-2 bg-white/90 text-red-600 w-7 h-7 rounded-md flex items-center justify-center translate-y-[-10px] opacity-0 group-hover:opacity-100 group-hover:translate-y-0 transition-all shadow-sm z-10 hover:bg-white"
+            >
+              <X className="h-4 w-4" />
+            </button>
 
-              <span className="text-[10px] text-muted-foreground mt-2">
-                {images.length}/{maxImages} images used
-              </span>
-            </div>
+            {index === 0 ? (
+              <div className="absolute bottom-2 left-2 right-2">
+                <div className="bg-black/70 backdrop-blur-sm text-white text-[10px] font-medium py-1 px-2 rounded text-center shadow-sm">
+                  Main Media
+                </div>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  const newImages = [...images];
+                  const [selected] = newImages.splice(index, 1);
+                  newImages.unshift(selected);
+                  onChange(newImages);
+                }}
+                className="absolute bottom-2 left-1/2 -translate-x-1/2 bg-white/90 text-gray-800 text-[10px] font-medium py-1 px-2 rounded shadow-sm opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white whitespace-nowrap"
+              >
+                Set as Main
+              </button>
+            )}
           </div>
-        )}
+        ))}
+
+        {/* Add Button Tile */}
+        <button
+          type="button"
+          disabled={uploading}
+          onClick={() => fileInputRef.current?.click()}
+          className="relative aspect-square flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-lg bg-gray-50 hover:bg-gray-100 hover:border-gray-400 transition-all group text-gray-500 hover:text-gray-700"
+        >
+          {uploading ? (
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-gray-500"></div>
+          ) : (
+            <>
+              <div className="w-10 h-10 rounded-full bg-white shadow-sm flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
+                <Plus className="w-5 h-5" />
+              </div>
+              <span className="text-xs font-medium">Add Image</span>
+              <span className="text-[10px] text-muted-foreground mt-0.5">or drop files</span>
+            </>
+          )}
+        </button>
+
+        {/* URL Option Tile (Optional, or integrated differently) */}
+        <button
+          type="button"
+          onClick={handleUrlAdd}
+          className="relative aspect-square flex flex-col items-center justify-center border border-gray-200 rounded-lg bg-white hover:bg-gray-50 transition-all text-gray-500 hover:text-gray-700"
+        >
+          <ImageIcon className="w-6 h-6 mb-2 opacity-50" />
+          <span className="text-xs font-medium">Add via URL</span>
+        </button>
+
       </div>
+
+      {images.length === 0 && (
+        <div className="mt-4 p-8 border-2 border-dashed rounded-lg bg-gray-50/50 flex flex-col items-center justify-center text-center">
+          <div className="w-12 h-12 bg-white rounded-full shadow-sm flex items-center justify-center mb-4">
+            <Upload className="w-6 h-6 text-blue-600" />
+          </div>
+          <h3 className="text-sm font-semibold text-gray-900">Upload product media</h3>
+          <p className="text-xs text-gray-500 mt-1 max-w-xs">
+            Drag and drop images here, or click to browse. You can upload multiple images at once.
+          </p>
+          <div className="flex gap-2 mt-4">
+            <Button size="sm" onClick={() => fileInputRef.current?.click()}>
+              <Plus className="w-4 h-4 mr-1" /> Select Files
+            </Button>
+            <Button size="sm" variant="outline" onClick={handleUrlAdd}>
+              Add from URL
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

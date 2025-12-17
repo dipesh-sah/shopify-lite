@@ -16,7 +16,7 @@ export default async function EditCollectionPage({ params }: PageProps) {
   }
 
   const products = collection.productIds && collection.productIds.length > 0
-    ? await getProductsAction({ ids: collection.productIds })
+    ? await getProductsAction({ ids: collection.productIds }).then(res => res.products || [])
     : []
 
   return <CollectionForm collection={collection} initialSelectedProducts={products} />

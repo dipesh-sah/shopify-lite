@@ -3,9 +3,8 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
-import { getOrderAction, updateOrderStatusAction } from '@/actions/orders'
-import { getProductAction } from '@/actions/products'
-import { ArrowLeft, Package, CheckCircle, Clock, AlertCircle, Mail, Calendar, DollarSign } from 'lucide-react'
+import { getOrderAction, updateOrderStatusAction, updatePaymentStatusAction } from '@/actions/orders'
+import { ArrowLeft, Package, CheckCircle, Clock, AlertCircle, Mail, Calendar, DollarSign, Pencil } from 'lucide-react'
 
 interface Order {
   id: string
@@ -14,25 +13,50 @@ interface Order {
   isPaid: boolean
   createdAt: any
   customerEmail?: string
+  customerFirstName?: string
+  customerLastName?: string
+  customerPhone?: string
+  customerTotalOrders?: number
+  customerTotalSpent?: number
   userId?: string
+  shippingAddress?: {
+    address1: string
+    city: string
+    province?: string
+    zip: string
+    country: string
+    firstName?: string
+    lastName?: string
+    phone?: string
+    company?: string
+    address2?: string
+  }
+  billingAddress?: {
+    firstName?: string
+    lastName?: string
+    company?: string
+    address1?: string
+    address2?: string
+    city?: string
+    province?: string
+    zip?: string
+    country?: string
+    phone?: string
+  }
   items: Array<{
     productId: string
+    name?: string
+    image?: string
     quantity: number
     price: number
   }>
-}
-
-interface Product {
-  id: string
-  name: string
-  images?: string[]
-  price: number
+  taxTotal?: number
+  taxBreakdown?: any
 }
 
 export default function AdminOrderDetailsPage() {
   const params = useParams()
   const [order, setOrder] = useState<Order | null>(null)
-  const [products, setProducts] = useState<Map<string, Product>>(new Map())
   const [isLoading, setIsLoading] = useState(true)
   const [isUpdating, setIsUpdating] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -53,23 +77,32 @@ export default function AdminOrderDetailsPage() {
         return
       }
 
-      setOrder(orderData as Order)
+      // Check if taxTotal is present, or map if needed.
+      // Usually getOrderAction returns DB columns snake_case? 
+      // But getOrderAction calls getOrderMySQL which selects *.
+      // DB columns: tax_total, tax_breakdown.
+      // If UI expects taxTotal (camelCase), I must map it here manually OR update getOrderAction?
+      // getOrderAction currently just returns 'order'.
+      // If getOrderMySQL returns row directly, it is snake_case.
+      // BUT `order.items` suggests some mapping happened?
+      // getOrderMySQL logic (Step 57 summary, or viewed earlier):
+      // It returns `items` array nested.
+      // Let's assume it maps keys to camelCase? Or stays snake_case?
+      // Check Order interface above: `customerEmail`, `shippingAddress`. These are camelCase.
+      // So mapping happens. 
+      // I should check getOrderMySQL mapping logic to see if it maps tax_total -> taxTotal.
+      // If not, I should add mapping here.
 
-      // Load product details for all items
-      if (orderData.items) {
-        const productMap = new Map<string, Product>()
-        for (const item of orderData.items) {
-          try {
-            const product = await getProductAction(item.productId)
-            if (product) {
-              productMap.set(item.productId, product as any)
-            }
-          } catch (err) {
-            console.error(`Failed to load product ${item.productId}:`, err)
-          }
-        }
-        setProducts(productMap)
+      // Let's assume I need to map it if not present.
+      const raw: any = orderData;
+      const mappedOrder = {
+        ...orderData,
+        taxTotal: raw.taxTotal ?? raw.tax_total,
+        taxBreakdown: raw.taxBreakdown ?? raw.tax_breakdown,
+        isPaid: orderData.paymentStatus === 'paid' || orderData.paymentStatus === 'PAID',
       }
+
+      setOrder(mappedOrder as unknown as Order)
     } catch (err) {
       console.error('Failed to load order details:', err)
       setError('Failed to load order details. Please try again.')
@@ -83,8 +116,12 @@ export default function AdminOrderDetailsPage() {
 
     setIsUpdating(true)
     try {
-      await updateOrderStatusAction(order.id, newStatus)
-      setOrder({ ...order, status: newStatus })
+      // Normalize to lowercase for DB
+      const result = await updateOrderStatusAction(order.id, newStatus.toLowerCase())
+      if (result.error) {
+        throw new Error(result.error)
+      }
+      setOrder({ ...order, status: newStatus.toLowerCase() })
     } catch (err) {
       console.error('Error updating order status:', err)
       setError('Failed to update order status.')
@@ -98,10 +135,14 @@ export default function AdminOrderDetailsPage() {
 
     setIsUpdating(true)
     try {
-      // Note: Action currently serves status updates. Explicit payment update might need separate action if logic differs. 
-      // Assuming updateOrderStatusAction handles payment status if passed (need to update action)
-      // For now, disabling payment toggle or making action accept it.
-      await updateOrderStatusAction(order.id, order.status) // TODO: Add isPaid to action
+      // Toggle logic
+      const newPaymentStatus = order.isPaid ? 'pending' : 'paid'
+
+      const result = await updatePaymentStatusAction(order.id, newPaymentStatus)
+      if (result.error) {
+        throw new Error(result.error)
+      }
+
       setOrder({ ...order, isPaid: !order.isPaid })
     } catch (err) {
       console.error('Error updating payment status:', err)
@@ -166,205 +207,289 @@ export default function AdminOrderDetailsPage() {
     }
   }
 
+  // Helper to safely handle status case for select
+  const currentStatus = order?.status?.toUpperCase() || 'PENDING'
+
   return (
-    <div className="space-y-6">
+    <div className="max-w-6xl mx-auto space-y-6">
       {/* Header */}
-      <div className="flex items-center gap-4">
-        <Link
-          href="/admin/orders"
-          className="inline-flex items-center justify-center rounded-md h-10 w-10 hover:bg-accent transition-colors"
-        >
-          <ArrowLeft className="w-5 h-5" />
-        </Link>
-        <div>
-          <h1 className="text-2xl font-bold">Order #{order.id.slice(-12)}</h1>
-          <p className="text-muted-foreground mt-1">Manage this order</p>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <Link
+            href="/admin/orders"
+            className="inline-flex items-center justify-center rounded-md h-10 w-10 hover:bg-accent transition-colors"
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </Link>
+          <div>
+            <h1 className="text-2xl font-bold flex items-center gap-2">
+              Order #{order.id.slice(-6).toUpperCase()}
+              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${getStatusColor(order.status)}`}>
+                {order.status.toUpperCase()}
+              </span>
+              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${order.isPaid ? 'bg-green-100 text-green-700 border-green-200' : 'bg-yellow-100 text-yellow-700 border-yellow-200'}`}>
+                {order.isPaid ? 'PAID' : 'PAYMENT PENDING'}
+              </span>
+            </h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              {order.createdAt ? new Date(order.createdAt).toLocaleDateString('en-US', {
+                year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit'
+              }) : ''}
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => handleStatusChange('PENDING')}
+            disabled={isUpdating}
+            className="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+          >
+            Restock
+          </button>
+          <button
+            className="px-3 py-2 text-sm font-medium text-white bg-gray-900 border border-transparent rounded-md shadow-sm hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-900"
+          >
+            Edit
+          </button>
         </div>
       </div>
 
-      <div className="grid gap-8 md:grid-cols-3">
-        {/* Main Content */}
-        <div className="md:col-span-2 space-y-6">
-          {/* Order Status */}
-          <div className="rounded-lg border bg-card p-6">
-            <h2 className="font-semibold mb-4">Order Status</h2>
-            <div className="flex items-center gap-4 mb-6">
-              {getStatusIcon(order.status)}
-              <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border ${getStatusColor(order.status)}`}>
-                {order.status}
-              </span>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Main Content (Left Column) */}
+        <div className="lg:col-span-2 space-y-6">
+
+          {/* Fulfillment Card */}
+          <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
+            <div className="p-4 border-b bg-gray-50 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${order.status.toUpperCase() === 'DELIVERED'
+                  ? 'bg-green-100 text-green-800'
+                  : 'bg-yellow-100 text-yellow-800'
+                  }`}>
+                  {order.status === 'DELIVERED' ? 'Fulfilled' : 'Unfulfilled'} ({order.items?.length || 0})
+                </span>
+                <span className="text-sm text-gray-500 flex items-center gap-1">
+                  <div className="w-2 h-2 rounded-full bg-gray-400"></div>
+                  Primary Location
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <select
+                  value={order.status.toUpperCase()}
+                  onChange={(e) => handleStatusChange(e.target.value)}
+                  disabled={isUpdating}
+                  className="text-xs border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-1"
+                >
+                  <option value="PENDING">Mark as Unfulfilled</option>
+                  <option value="SHIPPED">Mark as Fulfilled</option>
+                  <option value="DELIVERED">Mark as Delivered</option>
+                </select>
+              </div>
             </div>
 
-            <div className="space-y-3">
-              <label className="text-sm font-medium">Update Status</label>
-              <select
-                value={order.status}
-                onChange={(e) => handleStatusChange(e.target.value)}
-                disabled={isUpdating}
-                className="w-full px-3 py-2 border rounded-md bg-background text-sm"
-              >
-                <option value="PENDING">Pending</option>
-                <option value="PROCESSING">Processing</option>
-                <option value="SHIPPED">Shipped</option>
-                <option value="DELIVERED">Delivered</option>
-                <option value="CANCELLED">Cancelled</option>
-              </select>
-            </div>
-          </div>
+            <div className="p-6">
+              <div className="border rounded-md p-4 mb-4 flex items-center gap-3">
+                <div className="p-2 bg-gray-100 rounded">
+                  <Package className="w-5 h-5 text-gray-600" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium">Standard Shipping</p>
+                  <p className="text-xs text-gray-500">Free Shipping</p>
+                </div>
+              </div>
 
-          {/* Order Items */}
-          <div className="rounded-lg border bg-card p-6">
-            <h2 className="font-semibold mb-4">Order Items</h2>
-            <div className="space-y-4">
-              {order.items && order.items.length > 0 ? (
-                order.items.map((item, index) => {
-                  const product = products.get(item.productId)
-                  return (
-                    <div key={index} className="flex gap-4 pb-4 border-b last:border-0 last:pb-0">
-                      <div className="w-20 h-20 bg-muted rounded-md overflow-hidden flex-shrink-0">
-                        {product?.images && product.images.length > 0 ? (
-                          <img
-                            src={product.images[0]}
-                            alt={product.name}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center">
-                            <Package className="w-8 h-8 text-muted-foreground" />
-                          </div>
-                        )}
+              <div className="space-y-6">
+                {order.items && order.items.map((item, index) => (
+                  <div key={index} className="flex items-start justify-between">
+                    <div className="flex items-start gap-4">
+                      <div className="w-12 h-12 rounded border bg-gray-100 overflow-hidden flex-shrink-0">
+                        {item.image ? (
+                          <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+                        ) : <Package className="w-full h-full p-2 text-gray-400" />}
                       </div>
-
-                      <div className="flex-1">
-                        <p className="font-medium">{product?.name || 'Product'}</p>
-                        <p className="text-sm text-muted-foreground mt-1">
-                          Quantity: {item.quantity}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          Price: ${Number(item.price).toFixed(2)} each
-                        </p>
-                      </div>
-
-                      <div className="text-right flex-shrink-0">
-                        <p className="font-semibold">
-                          ${Number(item.price * item.quantity).toFixed(2)}
-                        </p>
+                      <div>
+                        <p className="text-sm font-medium text-blue-600 hover:underline cursor-pointer">{item.name || 'Product'}</p>
+                        {/* <p className="text-xs text-gray-500">SKU: {item.productId.slice(0,8)}</p> */}
+                        <p className="text-sm mt-1">${Number(item.price).toFixed(2)} × {item.quantity}</p>
                       </div>
                     </div>
-                  )
-                })
-              ) : (
-                <p className="text-muted-foreground text-sm">No items in this order</p>
-              )}
+                    <p className="text-sm font-medium">${(Number(item.price) * item.quantity).toFixed(2)}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="p-4 bg-gray-50 border-t flex justify-end gap-2">
+              <button
+                onClick={() => handleStatusChange('SHIPPED')}
+                disabled={isUpdating}
+                className="px-3 py-1.5 border border-gray-300 rounded-md text-sm font-medium bg-white hover:bg-gray-50"
+              >
+                Mark as fulfilled
+              </button>
+              <button
+                onClick={() => handleStatusChange('SHIPPED')}
+                disabled={isUpdating}
+                className="px-3 py-1.5 bg-gray-900 text-white rounded-md text-sm font-medium hover:bg-gray-800"
+              >
+                Create shipping label
+              </button>
             </div>
           </div>
 
-          {/* Customer Info */}
-          <div className="rounded-lg border bg-card p-6">
-            <h2 className="font-semibold mb-4">Customer Information</h2>
-            <div className="space-y-3">
-              {order.customerEmail && (
-                <div className="flex items-start gap-3">
-                  <Mail className="w-4 h-4 text-muted-foreground mt-0.5" />
-                  <div>
-                    <p className="text-sm text-muted-foreground">Email</p>
-                    <Link
-                      href={`/admin/customers/${encodeURIComponent(order.customerEmail)}`}
-                      className="text-primary hover:underline break-all"
-                    >
-                      {order.customerEmail}
-                    </Link>
-                  </div>
-                </div>
-              )}
-              {order.userId && (
-                <div className="flex items-start gap-3">
-                  <Package className="w-4 h-4 text-muted-foreground mt-0.5" />
-                  <div>
-                    <p className="text-sm text-muted-foreground">User ID</p>
-                    <p className="font-mono text-sm break-all">{order.userId}</p>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Sidebar */}
-        <div className="space-y-6">
-          {/* Order Summary */}
-          <div className="rounded-lg border bg-card p-6">
-            <h2 className="font-semibold mb-4">Order Summary</h2>
-            <div className="space-y-3">
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Subtotal</span>
-                <span>${Number(order.total * 0.9).toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Tax</span>
-                <span>${Number(order.total * 0.1).toFixed(2)}</span>
-              </div>
-              <div className="border-t pt-3 flex justify-between">
-                <span className="font-semibold">Total</span>
-                <span className="text-lg font-bold text-primary">
-                  ${Number(order.total).toFixed(2)}
+          {/* Payment Card */}
+          <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
+            <div className="p-4 border-b bg-gray-50 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${order.isPaid ? 'bg-green-100 text-green-800' : 'bg-orange-100 text-orange-800'
+                  }`}>
+                  {order.isPaid ? 'Paid' : 'Payment pending'}
                 </span>
               </div>
             </div>
-          </div>
 
-          {/* Payment Status */}
-          <div className="rounded-lg border bg-card p-6">
-            <h2 className="font-semibold mb-4">Payment Status</h2>
-            <div className="mb-4">
-              <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${order.isPaid
-                ? 'bg-green-50 text-green-700'
-                : 'bg-red-50 text-red-700'
-                }`}>
-                {order.isPaid ? 'Paid' : 'Pending'}
-              </span>
+            <div className="p-6 space-y-3">
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600">Subtotal</span>
+                <span>{order.items?.length || 0} items</span>
+                <span className="font-medium">${(Number(order.total) * 0.9).toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600">Shipping</span>
+                <span className="text-gray-600">Standard (0.71 lb)</span>
+                <span className="font-medium">$0.00</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600">Tax</span>
+                <div className="text-right">
+                  <span className="font-medium block">${(Number(order.taxTotal || 0)).toFixed(2)}</span>
+                  {/* Breakdown */}
+                  {(() => {
+                    let breakdown = order.taxBreakdown;
+                    if (typeof breakdown === 'string') {
+                      try { breakdown = JSON.parse(breakdown); } catch (e) { }
+                    }
+                    if (Array.isArray(breakdown) && breakdown.length > 0) {
+                      return (
+                        <div className="text-xs text-gray-500 mt-1">
+                          {breakdown.map((line: any, i: number) => (
+                            <div key={i}>
+                              {line.title} ({line.rate}%): ${Number(line.amount).toFixed(2)}
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    }
+                    return null;
+                  })()}
+                </div>
+              </div>
+              <div className="flex justify-between text-base font-bold pt-3 border-t">
+                <span>Total</span>
+                <span>${Number(order.total).toFixed(2)}</span>
+              </div>
+
+              <div className="flex justify-between text-sm pt-3 border-t">
+                <span className="text-gray-600">Paid by customer</span>
+                <span className="font-medium">${order.isPaid ? Number(order.total).toFixed(2) : '0.00'}</span>
+              </div>
             </div>
-            <button
-              onClick={handlePaymentToggle}
-              disabled={isUpdating}
-              className="w-full px-3 py-2 text-sm border rounded-md hover:bg-accent transition-colors disabled:opacity-50"
-            >
-              {isUpdating ? 'Updating...' : order.isPaid ? 'Mark as Unpaid' : 'Mark as Paid'}
-            </button>
+
+            <div className="p-4 bg-gray-50 border-t flex justify-end gap-2">
+              {/* Just a visual button for now, action handled by toggle or we can hook it up */}
+              <button
+                onClick={handlePaymentToggle}
+                disabled={isUpdating}
+                className="px-3 py-1.5 border border-gray-300 rounded-md text-sm font-medium bg-white hover:bg-gray-50"
+              >
+                {order.isPaid ? 'Mark as Unpaid' : 'Collect payment'}
+              </button>
+            </div>
           </div>
 
-          {/* Order Information */}
-          <div className="rounded-lg border bg-card p-6">
-            <h2 className="font-semibold mb-4">Order Information</h2>
+        </div>
+
+        {/* Sidebar (Right Column) */}
+        <div className="space-y-6">
+          {/* Notes */}
+          <div className="bg-white rounded-lg shadow-sm border p-4">
+            <div className="flex justify-between items-center mb-2">
+              <h3 className="font-medium text-sm text-gray-900">Notes</h3>
+              <button className="text-gray-400 hover:text-gray-600"><Pencil className="w-4 h-4" /></button>
+            </div>
+            <p className="text-sm text-gray-500">No notes from customer</p>
+          </div>
+
+          {/* Customer */}
+          <div className="bg-white rounded-lg shadow-sm border p-4">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="font-medium text-sm text-gray-900">Customer</h3>
+              <button className="text-gray-400 hover:text-gray-600">...</button>
+            </div>
+
             <div className="space-y-4">
-              <div>
-                <p className="text-xs text-muted-foreground uppercase mb-1 flex items-center gap-1">
-                  <Calendar className="w-3 h-3" />
-                  Order Date
-                </p>
-                <p className="text-sm font-medium">
-                  {order.createdAt?.toDate
-                    ? order.createdAt.toDate().toLocaleDateString('en-US', {
-                      year: 'numeric',
-                      month: 'long',
-                      day: 'numeric',
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    })
-                    : 'N/A'}
-                </p>
+              <div className="border-b pb-4 last:border-0 last:pb-0">
+                <Link href={`/admin/customers/${encodeURIComponent(order.customerEmail || '')}`} className="text-sm font-medium text-blue-600 hover:underline block">
+                  {order.customerFirstName && order.customerLastName ? `${order.customerFirstName} ${order.customerLastName}` : order.customerEmail}
+                </Link>
+                <p className="text-xs text-gray-500 mt-1">{order.customerTotalOrders || 0} orders</p>
               </div>
-              <div>
-                <p className="text-xs text-muted-foreground uppercase mb-1 flex items-center gap-1">
-                  <DollarSign className="w-3 h-3" />
-                  Order Total
-                </p>
-                <p className="text-sm font-medium">${Number(order.total).toFixed(2)}</p>
+
+              <div className="border-b pb-4 last:border-0 last:pb-0">
+                <h4 className="text-xs font-semibold uppercase text-gray-500 mb-2">Contact information</h4>
+                <p className="text-sm text-blue-600 hover:underline cursor-pointer">{order.customerEmail}</p>
+                <p className="text-sm text-gray-900 mt-1">{order.customerPhone || 'No phone number'}</p>
+              </div>
+
+              <div className="border-b pb-4 last:border-0 last:pb-0">
+                <h4 className="text-xs font-semibold uppercase text-gray-500 mb-2">Shipping address</h4>
+                <div className="text-sm text-gray-900">
+                  {order.shippingAddress ? (
+                    <>
+                      {order.shippingAddress.firstName} {order.shippingAddress.lastName}<br />
+                      {order.shippingAddress.company && <>{order.shippingAddress.company}<br /></>}
+                      {order.shippingAddress.address1}<br />
+                      {order.shippingAddress.address2 && <>{order.shippingAddress.address2}<br /></>}
+                      {order.shippingAddress.city} {order.shippingAddress.province} {order.shippingAddress.zip}<br />
+                      {order.shippingAddress.country}<br />
+                      {order.shippingAddress.phone || order.customerPhone}
+                    </>
+                  ) : (
+                    <span className="text-gray-500 italic">No shipping address provided</span>
+                  )}
+                </div>
+              </div>
+
+              <div className="pb-0">
+                <h4 className="text-xs font-semibold uppercase text-gray-500 mb-2">Billing address</h4>
+                <div className="text-sm text-gray-900">
+                  {order.billingAddress ? (
+                    <>
+                      {order.billingAddress.firstName} {order.billingAddress.lastName}<br />
+                      {order.billingAddress.company && <>{order.billingAddress.company}<br /></>}
+                      {order.billingAddress.address1}<br />
+                      {order.billingAddress.address2 && <>{order.billingAddress.address2}<br /></>}
+                      {order.billingAddress.city} {order.billingAddress.province} {order.billingAddress.zip}<br />
+                      {order.billingAddress.country}<br />
+                      {order.billingAddress.phone || order.customerPhone}
+                    </>
+                  ) : (
+                    <span className="text-gray-500">Same as shipping address</span>
+                  )}
+                </div>
               </div>
             </div>
           </div>
+
+          {/* Conversion (Static Placeholder) */}
+          <div className="bg-white rounded-lg shadow-sm border p-4">
+            <h3 className="font-medium text-sm text-gray-900 mb-4">Conversion summary</h3>
+            <p className="text-sm text-gray-500">There are no conversion details available for this order.</p>
+          </div>
+
         </div>
       </div>
     </div>
   )
 }
+

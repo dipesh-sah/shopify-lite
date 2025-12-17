@@ -92,6 +92,7 @@ export function MultiSelect({
           <DropdownMenuCheckboxItem
             key={option.value}
             checked={selected.includes(option.value)}
+            className="pl-8 cursor-pointer relative"
             onCheckedChange={(checked) => {
               if (checked) {
                 onChange([...selected, option.value])

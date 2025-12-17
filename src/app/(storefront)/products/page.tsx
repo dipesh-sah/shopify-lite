@@ -12,16 +12,40 @@ export default function ProductsPage() {
   const [selectedSubcategory, setSelectedSubcategory] = useState<string>("")
   const [loading, setLoading] = useState(true)
 
+  // New Filters State
+  const [searchQuery, setSearchQuery] = useState("")
+  const [debouncedSearch, setDebouncedSearch] = useState("")
+  const [minPrice, setMinPrice] = useState<string>("")
+  const [maxPrice, setMaxPrice] = useState<string>("")
+  const [inStock, setInStock] = useState(false)
+
+  // Debounce Search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchQuery)
+    }, 500)
+    return () => clearTimeout(timer)
+  }, [searchQuery])
+
   useEffect(() => {
     async function loadData() {
+      setLoading(true)
       try {
-        // Load all products
-        const allProducts = await getProductsAction()
-        setProducts(allProducts)
+        const filters: any = { limit: 100 }
+        if (debouncedSearch) filters.search = debouncedSearch;
+        if (selectedCategory) filters.category = selectedCategory;
+        if (minPrice) filters.minPrice = Number(minPrice);
+        if (maxPrice) filters.maxPrice = Number(maxPrice);
+        if (inStock) filters.inStock = true;
 
-        // Load active categories
-        const cats = await getActiveCollectionsAction()
-        setCategories(cats)
+        const result = await getProductsAction(filters)
+        setProducts(result.products || [])
+
+        // Only load categories once
+        if (categories.length === 0) {
+          const cats = await getActiveCollectionsAction()
+          setCategories(cats)
+        }
       } catch (error) {
         console.error('Failed to load data:', error)
       } finally {
@@ -29,79 +53,121 @@ export default function ProductsPage() {
       }
     }
     loadData()
-    // read query params (category or subcategory)
+  }, [debouncedSearch, selectedCategory, selectedSubcategory, minPrice, maxPrice, inStock])
+
+  // Initial params load
+  useEffect(() => {
     try {
       const params = new URLSearchParams(window.location.search)
       const cat = params.get('category')
       const sub = params.get('subcategory')
+      const search = params.get('q')
       if (sub) setSelectedSubcategory(sub)
       else if (cat) setSelectedCategory(cat)
-    } catch (err) {
-      // noop on server or if window not available
-    }
+      if (search) setSearchQuery(search)
+    } catch (err) { }
   }, [])
-
-  const filteredProducts = selectedSubcategory
-    ? products.filter(p => p.subcategoryId === selectedSubcategory)
-    : selectedCategory
-      ? products.filter(p => p.categoryId === selectedCategory)
-      : products
-
-  if (loading) {
-    return (
-      <div className="container px-4 md:px-6 py-8">
-        <div className="flex items-center justify-center h-64">
-          <p className="text-muted-foreground">Loading products...</p>
-        </div>
-      </div>
-    )
-  }
 
   return (
     <div className="container px-4 md:px-6 py-8">
       <h1 className="text-3xl font-bold tracking-tight mb-8">All Products</h1>
 
-      {/* Categories Filter */}
-      {categories.length > 0 && (
-        <div className="mb-8">
-          <h3 className="text-sm font-semibold mb-3">Categories</h3>
-          <div className="flex flex-wrap gap-2">
-            <button
-              onClick={() => setSelectedCategory("")}
-              className={`px-4 py-2 rounded-full border transition-colors ${selectedCategory === ""
-                ? "bg-black text-white border-black"
-                : "border-gray-300 hover:border-black"
-                }`}
-            >
-              All Products
-            </button>
-            {categories.map(cat => (
-              <button
-                key={cat.id}
-                onClick={() => setSelectedCategory(cat.id)}
-                className={`px-4 py-2 rounded-full border transition-colors ${selectedCategory === cat.id
-                  ? "bg-black text-white border-black"
-                  : "border-gray-300 hover:border-black"
-                  }`}
-              >
-                {cat.name}
-              </button>
-            ))}
+      <div className="flex flex-col md:flex-row gap-8">
+        {/* Sidebar Filters */}
+        <aside className="w-full md:w-64 space-y-8 flex-shrink-0">
+          {/* Search */}
+          <div>
+            <h3 className="font-semibold mb-3">Search</h3>
+            <input
+              type="text"
+              placeholder="Search products..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full px-3 py-2 border rounded-md"
+            />
           </div>
-        </div>
-      )}
 
-      {/* Products Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-        {filteredProducts.length === 0 ? (
-          <p className="col-span-full text-center text-muted-foreground py-12">
-            No products found in this category.
-          </p>
-        ) : (
-          filteredProducts.map((product: any) => (
-            <ProductCard key={product.id} product={product} />
-          ))
-        )}
+          {/* Categories */}
+          {categories.length > 0 && (
+            <div>
+              <h3 className="font-semibold mb-3">Categories</h3>
+              <div className="space-y-2">
+                <button
+                  onClick={() => setSelectedCategory("")}
+                  className={`block w-full text-left text-sm ${selectedCategory === "" ? "font-bold text-black" : "text-gray-600 hover:text-black"}`}
+                >
+                  All Categories
+                </button>
+                {categories.map(cat => (
+                  <button
+                    key={cat.id}
+                    onClick={() => setSelectedCategory(cat.id)}
+                    className={`block w-full text-left text-sm ${selectedCategory === cat.id ? "font-bold text-black" : "text-gray-600 hover:text-black"}`}
+                  >
+                    {cat.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Price Range */}
+          <div>
+            <h3 className="font-semibold mb-3">Price Range</h3>
+            <div className="flex gap-2 items-center">
+              <input
+                type="number"
+                placeholder="Min"
+                value={minPrice}
+                onChange={(e) => setMinPrice(e.target.value)}
+                className="w-full px-2 py-1 border rounded"
+              />
+              <span>-</span>
+              <input
+                type="number"
+                placeholder="Max"
+                value={maxPrice}
+                onChange={(e) => setMaxPrice(e.target.value)}
+                className="w-full px-2 py-1 border rounded"
+              />
+            </div>
+          </div>
+
+          {/* Availability */}
+          <div>
+            <h3 className="font-semibold mb-3">Availability</h3>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={inStock}
+                onChange={(e) => setInStock(e.target.checked)}
+                className="rounded border-gray-300"
+              />
+              <span className="text-sm">In Stock Only</span>
+            </label>
+          </div>
+        </aside>
+
+        {/* Products Grid */}
+        <div className="flex-1">
+          {loading ? (
+            <div className="flex items-center justify-center h-64">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-black"></div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {products.length === 0 ? (
+                <p className="col-span-full text-center text-muted-foreground py-12">
+                  No products found matching your criteria.
+                </p>
+              ) : (
+                products.map((product: any) => (
+                  <ProductCard key={product.id} product={product} />
+                ))
+              )}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   )

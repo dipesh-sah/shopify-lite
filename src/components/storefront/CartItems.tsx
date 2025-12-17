@@ -25,7 +25,7 @@ export function CartItems() {
   return (
     <div className="space-y-4">
       {items.map((item) => (
-        <div key={item.product.id} className="flex gap-4 rounded-lg border bg-card p-4">
+        <div key={`${item.product.id}-${item.variantId || 'base'}`} className="flex gap-4 rounded-lg border bg-card p-4">
           <div className="h-24 w-24 flex-shrink-0 overflow-hidden rounded-md border bg-muted">
             {item.product.images[0] && (
               <img
@@ -43,6 +43,9 @@ export function CartItems() {
                     {item.product.name}
                   </Link>
                 </h3>
+                {/* Show variant options if available in product title or name if we had them stored
+                      For now just relying on the fact that different variants are separate rows
+                  */}
                 <p className="text-sm text-muted-foreground mt-1">
                   ${Number(item.product.price).toFixed(2)}
                 </p>
@@ -51,7 +54,7 @@ export function CartItems() {
                 variant="ghost"
                 size="icon"
                 className="text-muted-foreground hover:text-destructive"
-                onClick={() => removeItem(item.product.id)}
+                onClick={() => removeItem(item.product.id, item.variantId)}
               >
                 <Trash2 className="h-4 w-4" />
               </Button>
@@ -61,7 +64,7 @@ export function CartItems() {
                 variant="outline"
                 size="icon"
                 className="h-8 w-8"
-                onClick={() => updateQuantity(item.product.id, Math.max(1, item.quantity - 1))}
+                onClick={() => updateQuantity(item.product.id, Math.max(1, item.quantity - 1), item.variantId)}
               >
                 <Minus className="h-3 w-3" />
               </Button>
@@ -70,7 +73,7 @@ export function CartItems() {
                 variant="outline"
                 size="icon"
                 className="h-8 w-8"
-                onClick={() => updateQuantity(item.product.id, item.quantity + 1)}
+                onClick={() => updateQuantity(item.product.id, item.quantity + 1, item.variantId)}
               >
                 <Plus className="h-3 w-3" />
               </Button>

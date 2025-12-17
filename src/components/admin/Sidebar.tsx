@@ -1,5 +1,6 @@
 "use client"
 
+import { useState } from 'react'
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
@@ -14,7 +15,9 @@ import {
   Archive,
   ShoppingCart,
   ChevronDown,
-  Image
+  Image,
+  Star,
+  Store
 } from "lucide-react"
 
 interface SidebarItem {
@@ -27,7 +30,7 @@ interface SidebarItem {
 
 const sidebarItems: SidebarItem[] = [
   { icon: LayoutDashboard, label: "Home", href: "/admin" },
-  { icon: ShoppingCart, label: "Orders", href: "/admin/orders", badge: 3 },
+  { icon: ShoppingCart, label: "Orders", href: "/admin/orders" },
   {
     icon: Package,
     label: "Products",
@@ -37,13 +40,25 @@ const sidebarItems: SidebarItem[] = [
       { label: "Inventory", href: "/admin/inventory" },
     ]
   },
-  { icon: Users, label: "Customers", href: "/admin/customers" },
+  {
+    icon: Users,
+    label: "Customers",
+    href: "/admin/customers",
+    children: [
+      { label: "Segments", href: "/admin/segments" },
+      { label: "Companies", href: "/admin/companies" },
+    ]
+  },
   { icon: Percent, label: "Discounts", href: "/admin/discounts" },
   { icon: Image, label: "Media", href: "/admin/media" },
+  { icon: Star, label: "Reviews", href: "/admin/reviews" },
 ]
+
+import { SettingsModal } from "./SettingsModal"
 
 export function AdminSidebar() {
   const pathname = usePathname()
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false)
 
   const renderItem = (item: SidebarItem) => {
     const isActive = pathname === item.href || (item.href !== '/admin' && pathname.startsWith(item.href))
@@ -95,7 +110,7 @@ export function AdminSidebar() {
   }
 
   return (
-    <aside className="w-64 border-r bg-card min-h-screen flex flex-col">
+    <aside className="w-64 border-r bg-card h-full flex flex-col">
       <div className="p-6 border-b">
         <Link href="/admin" className="flex items-center gap-2 font-bold text-xl">
           <ShoppingBag className="h-6 w-6" />
@@ -107,20 +122,30 @@ export function AdminSidebar() {
           {sidebarItems.map(renderItem)}
         </ul>
       </nav>
-      <div className="p-4 border-t">
-        <Link
-          href="/admin/settings"
+      <div className="p-4 border-t space-y-1">
+        <a
+          href="/"
+          target="_blank"
+          rel="noopener noreferrer"
           className={cn(
-            "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors",
-            pathname.startsWith("/admin/settings")
-              ? "bg-muted text-primary"
-              : "text-muted-foreground hover:bg-muted/50 hover:text-primary"
+            "w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors text-muted-foreground hover:bg-muted/50 hover:text-primary"
+          )}
+        >
+          <Store className="h-4 w-4" />
+          <span>Visit Website</span>
+        </a>
+        <button
+          onClick={() => setIsSettingsOpen(true)}
+          className={cn(
+            "w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors text-muted-foreground hover:bg-muted/50 hover:text-primary"
           )}
         >
           <Settings className="h-4 w-4" />
           <span>Settings</span>
-        </Link>
+        </button>
       </div>
+
+      {isSettingsOpen && <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />}
     </aside>
   )
 }

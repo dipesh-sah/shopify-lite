@@ -4,49 +4,119 @@ import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { createProductAction } from "@/actions/products"
 import { getCollectionsAction, getSubcategoriesAction } from "@/actions/collections"
-import { getAttributeGroupsAction } from "@/actions/attributes"
+import { getTaxClassesAction } from "@/actions/tax"
+
 import { showToast } from '@/components/ui/Toast'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import Spinner from '@/components/ui/Spinner'
 import { ImagePicker } from "@/components/admin/ImagePicker"
 import { MultiSelect } from "@/components/ui/multi-select"
+import { ProductOptions } from "@/components/admin/ProductOptions"
+import { VariantsTable, Variant } from "@/components/admin/VariantsTable"
 import { ArrowLeft } from "lucide-react"
+
+import { previewNextNumberAction } from "@/actions/settings"
 
 export default function NewProductPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
+  const [prefilledSku, setPrefilledSku] = useState("")
+
+  useEffect(() => {
+    previewNextNumberAction('product')
+      .then(num => setPrefilledSku(num))
+      .catch(console.error)
+  }, [])
+
   const [images, setImages] = useState<string[]>([])
-  // const [tags, setTags, setTags] = useState<string[]>([])
-  // const [tagInput, setTagInput] = useState("")
   const [categories, setCategories] = useState<any[]>([])
   const [categoriesLoading, setCategoriesLoading] = useState(true)
   const [subcategories, setSubcategories] = useState<any[]>([])
   const [subsLoading, setSubsLoading] = useState(false)
   const [selectedCollections, setSelectedCollections] = useState<string[]>([])
-  const [variants, setVariants] = useState<any[]>([])
-  const [variantForm, setVariantForm] = useState({ sku: '', priceDelta: '', stock: '', optionsSelected: {} as Record<string, string>, image: '' })
-  const [attributeGroups, setAttributeGroups] = useState<any[]>([])
-  const [attrsLoading, setAttrsLoading] = useState(true)
+  const [price, setPrice] = useState<number>(0)
+  const [taxClasses, setTaxClasses] = useState<any[]>([])
+
+  // New Variant System State
+  const [options, setOptions] = useState<any[]>([]) // [{ id, name, values: [] }]
+  const [variants, setVariants] = useState<Variant[]>([])
+
+
 
   useEffect(() => {
     async function loadData() {
       try {
-        const [catsRes, attrs] = await Promise.all([
-          getCollectionsAction(),
-          getAttributeGroupsAction()
-        ])
+        const catsRes = await getCollectionsAction()
         setCategories(catsRes.collections)
-        setAttributeGroups(attrs)
+        const tClasses = await getTaxClassesAction()
+        setTaxClasses(tClasses)
       } catch (error) {
         console.error('Failed to load initial data:', error)
       } finally {
         setCategoriesLoading(false)
-        setAttrsLoading(false)
       }
     }
     loadData()
   }, [])
+
+  // Generate variants when options change
+  useEffect(() => {
+    if (options.length === 0) {
+      setVariants([])
+      return
+    }
+
+    // Filter out incomplete options
+    const validOptions = options.filter(o => o.name && o.values.length > 0)
+    if (validOptions.length === 0) return
+
+    // Helper to generate Cartesian product
+    const cartesian = (args: any[]): any[][] => {
+      const r: any[][] = []
+      const max = args.length - 1
+      function helper(arr: any[], i: number) {
+        for (let j = 0, l = args[i].length; j < l; j++) {
+          const a = arr.slice(0)
+          a.push(args[i][j])
+          if (i === max) r.push(a)
+          else helper(a, i + 1)
+        }
+      }
+      helper([], 0)
+      return r
+    }
+
+    // 1. Prepare values arrays: [['Red', 'Blue'], ['S', 'M']]
+    const valuesArrays = validOptions.map(o => o.values)
+
+    // 2. Generate combinations: [['Red', 'S'], ['Red', 'M']...]
+    const combinations = cartesian(valuesArrays)
+
+    // 3. Map to variant objects
+    const newVariants = combinations.map(combo => {
+      const variantOptions: Record<string, string> = {}
+      combo.forEach((val: string, idx: number) => {
+        variantOptions[validOptions[idx].name] = val
+      })
+
+      const title = combo.join(' / ')
+      const existing = variants.find(v => v.title === title)
+
+      // Preserve existing data if found
+      return existing || {
+        id: `v-${Date.now()}-${Math.random()}`,
+        title,
+        sku: '',
+        price: price,
+        stock: 0,
+        options: variantOptions,
+        images: []
+      }
+    })
+
+    setVariants(newVariants)
+  }, [options, price])
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -61,7 +131,7 @@ export default function NewProductPage() {
     try {
       await createProductAction(formData)
       showToast('Product created successfully', 'success')
-      router.push('/admin/products')
+      // router.push('/admin/products') // Removed redirect per user request
     } catch (error) {
       console.error(error)
       showToast('Failed to create product', 'error')
@@ -70,18 +140,28 @@ export default function NewProductPage() {
     }
   }
 
-  function addVariant() {
-    const options = { ...variantForm.optionsSelected }
-    const priceDelta = variantForm.priceDelta ? parseFloat(variantForm.priceDelta) : 0
-    const stock = variantForm.stock ? parseInt(variantForm.stock) : 0
-    const v = { id: `tmp-${Date.now()}`, sku: variantForm.sku, priceDelta, stock, options, images: [] }
-    setVariants([...variants, v])
-    setVariantForm({ sku: '', priceDelta: '', stock: '', optionsSelected: {}, image: '' })
-  }
 
-  function removeVariant(idx: number) {
-    setVariants(variants.filter((_, i) => i !== idx))
-  }
+
+  const handleImageUpload = async (files: File[]): Promise<string[]> => {
+    const uploadedUrls: string[] = [];
+    for (const file of files) {
+      const formData = new FormData();
+      formData.append("file", file);
+      try {
+        const res = await fetch("/api/upload", { method: "POST", body: formData });
+        if (res.ok) {
+          const data = await res.json();
+          uploadedUrls.push(data.url);
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    if (uploadedUrls.length > 0) {
+      // setImages(prev => [...prev, ...uploadedUrls]); // User requested not to add variant uploads to main product images
+    }
+    return uploadedUrls;
+  };
 
   return (
     <div className="max-w-4xl">
@@ -101,6 +181,7 @@ export default function NewProductPage() {
         {/* Basic Information */}
         <div className="rounded-lg border bg-card p-6">
           <h2 className="text-lg font-semibold mb-4">Basic Information</h2>
+
 
           <div className="space-y-4">
             <div>
@@ -133,6 +214,20 @@ export default function NewProductPage() {
 
             <div className="grid grid-cols-2 gap-4">
               <div>
+                <label htmlFor="sku" className="block text-sm font-medium mb-2">
+                  SKU
+                </label>
+                <input
+                  type="text"
+                  id="sku"
+                  name="sku"
+                  key={prefilledSku}
+                  defaultValue={prefilledSku}
+                  className="w-full px-3 py-2 border rounded-md"
+                />
+              </div>
+
+              <div className="col-span-2">
                 <label className="block text-sm font-medium mb-2">
                   Collections
                 </label>
@@ -143,33 +238,9 @@ export default function NewProductPage() {
                   placeholder="Select collections..."
                 />
               </div>
-
-              <div>
-                <label htmlFor="sku" className="block text-sm font-medium mb-2">
-                  SKU
-                </label>
-                <input
-                  type="text"
-                  id="sku"
-                  name="sku"
-                  className="w-full px-3 py-2 border rounded-md"
-                  placeholder="Optional"
-                />
-              </div>
             </div>
 
-            {/* Subcategory selector */}
-            <div className="mt-3">
-              <label htmlFor="subcategoryId" className="block text-sm font-medium mb-2">
-                Subcategory
-              </label>
-              <select id="subcategoryId" name="subcategoryId" disabled={subsLoading} className="w-full px-3 py-2 border rounded-md bg-white">
-                <option value="">Select a subcategory (optional)</option>
-                {subcategories.map(s => (
-                  <option key={s.id} value={s.id}>{s.name}</option>
-                ))}
-              </select>
-            </div>
+
 
             <div className="mt-3">
               <label htmlFor="status" className="block text-sm font-medium mb-2">
@@ -202,6 +273,8 @@ export default function NewProductPage() {
                 min="0"
                 className="w-full px-3 py-2 border rounded-md"
                 placeholder="0.00"
+                value={price}
+                onChange={(e) => setPrice(parseFloat(e.target.value) || 0)}
               />
             </div>
 
@@ -234,6 +307,19 @@ export default function NewProductPage() {
                 placeholder="0.00"
               />
             </div>
+
+
+            <div className="col-span-3">
+              <label htmlFor="taxClassId" className="block text-sm font-medium mb-2">
+                Tax Class
+              </label>
+              <select id="taxClassId" name="taxClassId" className="w-full px-3 py-2 border rounded-md bg-white">
+                {/* Default usually handled by backend if null, but explicit is better */}
+                {taxClasses.map((TC: any) => (
+                  <option key={TC.id} value={TC.id}>{TC.name} {TC.is_default ? '(Default)' : ''}</option>
+                ))}
+              </select>
+            </div>
           </div>
         </div>
 
@@ -241,48 +327,19 @@ export default function NewProductPage() {
         <div className="rounded-lg border bg-card p-6">
           <h2 className="text-lg font-semibold mb-4">Variants</h2>
 
-          <div className="space-y-3">
-            <div className="grid grid-cols-4 gap-3">
-              <input value={variantForm.sku} onChange={(e) => setVariantForm(prev => ({ ...prev, sku: e.target.value }))} placeholder="SKU" className="px-3 py-2 border rounded-md col-span-1" />
-              <input value={variantForm.priceDelta} onChange={(e) => setVariantForm(prev => ({ ...prev, priceDelta: e.target.value }))} placeholder="Price delta (e.g., 10 or -5)" className="px-3 py-2 border rounded-md col-span-1" />
-              <input value={variantForm.stock} onChange={(e) => setVariantForm(prev => ({ ...prev, stock: e.target.value }))} placeholder="Stock" className="px-3 py-2 border rounded-md col-span-1" />
-              <div className="col-span-1">
-                {attrsLoading ? (
-                  <div className="text-sm text-muted-foreground">Loading attributes...</div>
-                ) : (
-                  <div className="space-y-1">
-                    {attributeGroups.map((g) => (
-                      <div key={g.id} className="flex items-center gap-2">
-                        <label className="text-xs w-24">{g.name}</label>
-                        <select value={variantForm.optionsSelected[g.name] || ''} onChange={(e) => setVariantForm(prev => ({ ...prev, optionsSelected: { ...prev.optionsSelected, [g.name]: e.target.value } }))} className="px-2 py-1 border rounded-md">
-                          <option value="">—</option>
-                          {(g.options || []).map((opt: string) => (
-                            <option key={opt} value={opt}>{opt}</option>
-                          ))}
-                        </select>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-            <div>
-              <Button type="button" onClick={addVariant} variant="outline">Add Variant</Button>
-            </div>
+          <div className="space-y-6">
+            <ProductOptions options={options} onChange={setOptions} />
 
             {variants.length > 0 && (
-              <div className="space-y-2">
-                {variants.map((v, idx) => (
-                  <div key={v.id} className="flex items-center justify-between p-3 border rounded-md">
-                    <div>
-                      <p className="font-medium">{v.sku} {v.priceDelta ? `(${v.priceDelta >= 0 ? '+' : ''}${v.priceDelta})` : ''}</p>
-                      <p className="text-xs text-muted-foreground">Stock: {v.stock} — Options: {Object.entries(v.options || {}).map(([k, val]) => `${k}:${val}`).join(', ')}</p>
-                    </div>
-                    <div>
-                      <Button type="button" variant="ghost" onClick={() => removeVariant(idx)}>Remove</Button>
-                    </div>
-                  </div>
-                ))}
+              <div className="space-y-3">
+                <h3 className="text-sm font-medium">Preview Variants</h3>
+                <VariantsTable
+                  variants={variants}
+                  options={options}
+                  onChange={setVariants}
+                  availableImages={images}
+                  onImageUpload={handleImageUpload}
+                />
               </div>
             )}
           </div>
@@ -378,7 +435,7 @@ export default function NewProductPage() {
             Cancel
           </Button>
         </div>
-      </form>
-    </div>
+      </form >
+    </div >
   )
 }

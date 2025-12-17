@@ -17,6 +17,21 @@ const Dialog = ({ children, open, onOpenChange }: { children: React.ReactNode; o
   )
 }
 
+const DialogTrigger = ({ children, asChild }: { children: React.ReactNode; asChild?: boolean }) => {
+  const context = React.useContext(DialogContext)
+  if (!context) return null
+
+  // If asChild is true, we should probably clone element but for simplicity in this custom implementation:
+  // We'll just wrap in a div that handles click if it's not a button, or clone if it is.
+  // Actually, for shadcn logic usually AsChild implies Slot.
+  // Here let's just make it a simple wrapper that opens the dialog.
+  return (
+    <div onClick={() => context.onOpenChange(true)} style={{ display: 'inline-block' }}>
+      {children}
+    </div>
+  )
+}
+
 const DialogContent = ({ children, className }: { children: React.ReactNode; className?: string }) => {
   const context = React.useContext(DialogContext)
   if (!context?.open) return null
@@ -64,4 +79,4 @@ const DialogDescription = React.forwardRef<HTMLParagraphElement, React.HTMLAttri
 ))
 DialogDescription.displayName = "DialogDescription"
 
-export { Dialog, DialogContent, DialogHeader, DialogFooter, DialogTitle, DialogDescription }
+export { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogFooter, DialogTitle, DialogDescription }

@@ -1,6 +1,6 @@
 "use server"
 
-import { deleteOrder, updateOrderStatus, getOrder, createOrder } from "@/lib/firestore"
+import { deleteOrderMySQL as deleteOrder, updateOrderStatusMySQL as updateOrderStatus, updatePaymentStatusMySQL as updatePaymentStatus, getOrderMySQL as getOrder, createOrderMySQL as createOrder, getCustomerOrdersMySQL as getCustomerOrders, getOrdersMySQL, getOrderStatsMySQL } from "@/lib/orders"
 
 export async function deleteOrderAction(id: string) {
   try {
@@ -22,6 +22,16 @@ export async function updateOrderStatusAction(id: string, status: string) {
   }
 }
 
+export async function updatePaymentStatusAction(id: string, status: 'paid' | 'pending' | 'failed') {
+  try {
+    await updatePaymentStatus(id, status)
+    return { success: true }
+  } catch (error) {
+    console.error("Error updating payment status:", error)
+    return { error: "Failed to update payment status" }
+  }
+}
+
 export async function getOrderAction(id: string) {
   try {
     const order = await getOrder(id)
@@ -34,9 +44,7 @@ export async function getOrderAction(id: string) {
 
 export async function getCustomerOrdersAction(email?: string, userId?: string) {
   try {
-    // In a real implementation this would query the DB
-    // For now we return empty array or stub
-    return []
+    return await getCustomerOrders(email, userId)
   } catch (error) {
     console.error("Error fetching customer orders:", error)
     return []
@@ -49,5 +57,73 @@ export async function createOrderAction(data: any) {
   } catch (error) {
     console.error("Error creating order:", error)
     throw error
+  }
+}
+export async function getOrdersAction(options: {
+  search?: string;
+  status?: string;
+  paymentStatus?: string;
+  page?: number;
+  limit?: number;
+  sortBy?: 'created_at' | 'total' | 'status';
+  sortOrder?: 'asc' | 'desc';
+} = {}) {
+  try {
+    const page = options.page || 1;
+    const limit = options.limit || 15;
+    const offset = (page - 1) * limit;
+
+    // Direct call to MySQL logic
+    const { orders, totalCount } = await getOrdersMySQL({
+      ...options,
+      status: options.status === 'all' ? undefined : options.status, // Ensure 'all' is treated as undefined
+      paymentStatus: options.paymentStatus === 'all' ? undefined : options.paymentStatus,
+      limit,
+      offset
+    });
+
+    return {
+      orders,
+      totalCount,
+      totalPages: Math.ceil(totalCount / limit),
+      currentPage: page
+    };
+  } catch (error) {
+    console.error("Error fetching orders:", error);
+    return { orders: [], totalCount: 0, totalPages: 0, currentPage: 1 };
+  }
+}
+
+export async function getOrderStatsAction() {
+  try {
+    return await getOrderStatsMySQL();
+  } catch (error) {
+    console.error("Error fetching order stats:", error);
+    return { totalOrders: 0, totalRevenue: 0, pendingOrders: 0, deliveredOrders: 0 };
+  }
+}
+
+export async function trackOrderAction(orderNumber: string, email: string) {
+  try {
+    const cleanOrderNum = orderNumber.replace('#', '').trim();
+    const { orders } = await getOrdersAction({ search: cleanOrderNum, limit: 100 });
+
+    // Filter by email match strictly
+    const order = orders.find((o: any) =>
+      (o.orderNumber === cleanOrderNum || o.id === orderNumber) &&
+      o?.customerEmail?.toLowerCase() === email.toLowerCase()
+    );
+
+    if (!order) return null;
+
+    // Format for UI (already formatted by getOrdersAction, but let's ensure structure)
+    return {
+      ...order,
+      createdAt: order.createdAt,
+      trackingUrl: null
+    };
+  } catch (e) {
+    console.error("Tracking Error:", e);
+    return null;
   }
 }

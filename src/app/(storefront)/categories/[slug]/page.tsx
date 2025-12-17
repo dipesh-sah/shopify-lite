@@ -17,7 +17,7 @@ export default async function CategoryPage({ params }: { params: Promise<{ slug:
     notFound()
   }
 
-  const products = await getProducts({ category: category.id })
+  const { products } = await getProducts({ category: category.id })
 
   return (
     <div className="container py-8">

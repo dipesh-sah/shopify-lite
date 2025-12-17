@@ -5,7 +5,9 @@ import { Button } from "@/components/ui/button"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/contexts/AuthContext"
 import { createOrderAction } from '@/actions/orders'
+import { getAddressesAction } from '@/actions/addresses'
 import { getPromotionByCodeAction } from '@/actions/promotions'
+import { calculateTaxAction } from '@/actions/tax'
 import { showToast } from "@/components/ui/Toast"
 import { useState, useEffect } from "react"
 import { AlertCircle, CheckCircle, X } from "lucide-react"
@@ -20,6 +22,41 @@ export default function CheckoutPage() {
   const [promoCode, setPromoCode] = useState('')
   const [promotion, setPromotion] = useState<any>(null)
   const [applyingPromo, setApplyingPromo] = useState(false)
+  const [addresses, setAddresses] = useState<any[]>([])
+  const [selectedAddress, setSelectedAddress] = useState<any>(null)
+  const [sameAsShipping, setSameAsShipping] = useState(true)
+  const [selectedBillingAddress, setSelectedBillingAddress] = useState<any>(null)
+
+  // Shipping State
+  const [shippingRates, setShippingRates] = useState<any[]>([])
+  const [selectedShippingRate, setSelectedShippingRate] = useState<any>(null)
+  const [loadingShipping, setLoadingShipping] = useState(false)
+  const [taxAmount, setTaxAmount] = useState(0)
+  const [taxBreakdown, setTaxBreakdown] = useState<any[]>([])
+  const [pricesIncludeTax, setPricesIncludeTax] = useState(false)
+  const [calculatingTax, setCalculatingTax] = useState(false)
+
+  const [shippingTax, setShippingTax] = useState(0)
+
+  useEffect(() => {
+    async function loadAddresses() {
+      try {
+        // Using dynamic import or direct import if server action?
+        // Since getAddressesAction is a server action, it's async
+        // dynamic import needed to avoid module graph issues? No, standard import works for actions.
+        const data = await getAddressesAction()
+        setAddresses(data)
+        if (data.length > 0) {
+          // Default or first
+          const def = data.find((a: any) => a.isDefault) || data[0]
+          setSelectedAddress(def)
+        }
+      } catch (e) {
+        console.error("Failed to load addresses", e)
+      }
+    }
+    if (user) loadAddresses()
+  }, [user])
 
   useEffect(() => {
     if (!loading && !user) {
@@ -28,12 +65,95 @@ export default function CheckoutPage() {
   }, [user, loading, router])
 
   const subtotal = items.reduce((sum, item) => sum + (item.product.price * item.quantity), 0)
+  // Calculate Shipping
+  useEffect(() => {
+    async function fetchShippingRates() {
+      if (!selectedAddress) return
+
+      setLoadingShipping(true)
+      try {
+        const res = await fetch('/api/shipping/calculate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            address: selectedAddress,
+            items: items.map(i => ({ product: i.product, quantity: i.quantity, variantId: i.variantId })),
+            total: subtotal
+          })
+        })
+        const data = await res.json()
+        if (data.rates) {
+          setShippingRates(data.rates)
+          // Auto select first if available and none selected, or if only one
+          if (data.rates.length > 0 && !selectedShippingRate) {
+            setSelectedShippingRate(data.rates[0])
+          }
+        }
+      } catch (e) {
+        console.error("Error fetching shipping rates:", e)
+      } finally {
+        setLoadingShipping(false)
+      }
+    }
+
+    fetchShippingRates()
+  }, [selectedAddress, subtotal])
+
+  const shippingCost = selectedShippingRate ? parseFloat(selectedShippingRate.cost) : 0
+
+
   const discountAmount = promotion ? (
     promotion.discountType === 'percentage'
       ? (subtotal * promotion.discountValue) / 100
       : Math.min(promotion.discountValue, subtotal)
   ) : 0
-  const total = Math.max(0, subtotal - discountAmount)
+
+  // Fix Total Calculation: If prices include tax, DON'T add taxAmount again
+  const total = Math.max(0, subtotal + shippingCost + (pricesIncludeTax ? 0 : taxAmount) - discountAmount)
+
+  // Calculate Net Subtotal for Display (Excl Tax)
+  // If prices INCLUDE tax, we subtract the tax portion from the subtotal to show the "before tax" price
+  const itemTax = taxAmount - shippingTax;
+  const displaySubtotal = pricesIncludeTax ? (subtotal - itemTax) : subtotal;
+
+  // Calculate Tax
+  useEffect(() => {
+    async function calcTax() {
+      if (!selectedAddress || items.length === 0) return
+
+      setCalculatingTax(true)
+      try {
+        const res = await calculateTaxAction({
+          items: items.map(i => ({
+            productId: i.product.id,
+            variantId: i.variantId,
+            price: Number(i.product.price),
+            quantity: i.quantity
+          })),
+          address: {
+            country: selectedAddress.country,
+            state: selectedAddress.province,
+            zip: selectedAddress.zip
+          },
+          shippingCost: shippingCost
+        })
+
+        setTaxAmount(res.taxTotal)
+        setShippingTax(res.shippingTax || 0)
+        setTaxBreakdown(res.taxBreakdown)
+        setPricesIncludeTax(res.pricesIncludeTax || false)
+      } catch (error) {
+        console.error('Failed to calculate tax:', error)
+      } finally {
+        setCalculatingTax(false)
+      }
+    }
+
+    // Debounce or just run? Shipping updates are async too.
+    const timer = setTimeout(calcTax, 500)
+    return () => clearTimeout(timer)
+  }, [items, selectedAddress, shippingCost])
+
 
   async function applyPromotion() {
     if (!promoCode.trim()) {
@@ -76,14 +196,53 @@ export default function CheckoutPage() {
 
     try {
       const orderData = {
-        userId: user.uid,
+        userId: user.id,
         customerEmail: user.email || undefined,
         items: items.map((item) => ({
           productId: item.product.id,
+          variantId: item.variantId,
           quantity: item.quantity,
           price: Number(item.product.price),
+          title: item.product.name,
         })),
         total: total,
+        shippingAddress: selectedAddress ? {
+          firstName: selectedAddress.firstName,
+          lastName: selectedAddress.lastName,
+          company: selectedAddress.company,
+          address1: selectedAddress.address1,
+          address2: selectedAddress.address2,
+          city: selectedAddress.city,
+          province: selectedAddress.province,
+          zip: selectedAddress.zip,
+          country: selectedAddress.country,
+          phone: selectedAddress.phone
+        } : undefined,
+        billingAddress: sameAsShipping ? (selectedAddress ? {
+          firstName: selectedAddress.firstName,
+          lastName: selectedAddress.lastName,
+          company: selectedAddress.company,
+          address1: selectedAddress.address1,
+          address2: selectedAddress.address2,
+          city: selectedAddress.city,
+          province: selectedAddress.province,
+          zip: selectedAddress.zip,
+          country: selectedAddress.country,
+          phone: selectedAddress.phone
+        } : undefined) : (selectedBillingAddress ? {
+          firstName: selectedBillingAddress.firstName,
+          lastName: selectedBillingAddress.lastName,
+          company: selectedBillingAddress.company,
+          address1: selectedBillingAddress.address1,
+          address2: selectedBillingAddress.address2,
+          city: selectedBillingAddress.city,
+          province: selectedBillingAddress.province,
+          zip: selectedBillingAddress.zip,
+          country: selectedBillingAddress.country,
+          phone: selectedBillingAddress.phone
+        } : undefined),
+        shippingMethodId: selectedShippingRate?.methodId,
+        shippingCost: shippingCost
       }
 
       const orderId = await createOrderAction(orderData)
@@ -212,8 +371,29 @@ export default function CheckoutPage() {
                 <div className="mt-4 pt-4 border-t space-y-2">
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Subtotal</span>
-                    <span>${subtotal.toFixed(2)}</span>
+                    <span>${displaySubtotal.toFixed(2)}</span>
                   </div>
+                  {selectedShippingRate && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Shipping</span>
+                      <span>{Number(shippingCost) === 0 ? 'Free' : `$${shippingCost.toFixed(2)}`}</span>
+                    </div>
+                  )}
+
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Tax</span>
+                    <span>{calculatingTax ? '...' : `$${taxAmount.toFixed(2)}`}</span>
+                  </div>
+                  {taxBreakdown.length > 0 && !calculatingTax && (
+                    <div className="text-xs text-muted-foreground space-y-1 pl-2 border-l">
+                      {taxBreakdown.map((line, idx) => (
+                        <div key={idx} className="flex justify-between">
+                          <span>{line.title} ({line.rate}%)</span>
+                          <span>${line.amount.toFixed(2)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                   {promotion && discountAmount > 0 && (
                     <div className="flex justify-between text-sm text-green-600">
                       <span>Discount ({promotion.code})</span>
@@ -232,15 +412,115 @@ export default function CheckoutPage() {
 
         {/* Shipping Info */}
         <div className="rounded-lg border bg-card p-6">
-          <h2 className="font-semibold mb-4">Shipping Information</h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="font-semibold">Shipping Information</h2>
+            <Button variant="ghost" size="sm" asChild>
+              <a href="/account/addresses" target="_blank">Change</a>
+            </Button>
+          </div>
           <div className="space-y-3 text-sm">
             <div>
               <p className="text-muted-foreground mb-1">Email</p>
               <p className="font-medium">{user.email}</p>
             </div>
-            <p className="text-muted-foreground text-xs">
-              Shipping address functionality coming soon. We'll send order details to your email.
-            </p>
+
+            <div>
+              <p className="text-muted-foreground mb-1">Shipping Address</p>
+              {selectedAddress ? (
+                <div className="font-medium">
+                  <p>{selectedAddress.firstName} {selectedAddress.lastName}</p>
+                  <p>{selectedAddress.address1}</p>
+                  {selectedAddress.address2 && <p>{selectedAddress.address2}</p>}
+                  <p>{selectedAddress.city}, {selectedAddress.province} {selectedAddress.zip}</p>
+                  <p>{selectedAddress.country}</p>
+                  {selectedAddress.phone && <p className="mt-1 text-muted-foreground">{selectedAddress.phone}</p>}
+                </div>
+              ) : (
+                <div className="text-muted-foreground">
+                  No address found. <a href="/account/addresses" className="text-primary hover:underline">Add a shipping address</a>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+
+        {/* Shipping Methods Selection */}
+        {shippingRates.length > 0 && (
+          <div className="mt-6 border-t pt-4">
+            <h3 className="font-semibold mb-3">Shipping Method</h3>
+            <div className="space-y-3">
+              {shippingRates.map((rate) => (
+                <div
+                  key={rate.rateId}
+                  className={`border p-3 rounded-lg flex items-center justify-between cursor-pointer ${selectedShippingRate?.rateId === rate.rateId ? 'border-primary bg-primary/5' : 'hover:border-gray-300'}`}
+                  onClick={() => setSelectedShippingRate(rate)}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={`h-4 w-4 rounded-full border flex items-center justify-center ${selectedShippingRate?.rateId === rate.rateId ? 'border-primary' : 'border-gray-300'}`}>
+                      {selectedShippingRate?.rateId === rate.rateId && <div className="h-2 w-2 rounded-full bg-primary" />}
+                    </div>
+                    <div>
+                      <p className="font-medium">{rate.label || rate.methodName}</p>
+                      {rate.description && <p className="text-xs text-muted-foreground">{rate.description}</p>}
+                    </div>
+                  </div>
+                  <span className="font-semibold">{Number(rate.cost) === 0 ? 'Free' : `$${Number(rate.cost).toFixed(2)}`}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+
+        {/* Billing Address */}
+        <div className="rounded-lg border bg-card p-6">
+          <h2 className="font-semibold mb-4">Billing Address</h2>
+          <div className="space-y-4">
+            <div className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                id="sameAsShipping"
+                checked={sameAsShipping}
+                onChange={(e) => setSameAsShipping(e.target.checked)}
+                className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+              />
+              <label htmlFor="sameAsShipping" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                Same as shipping address
+              </label>
+            </div>
+
+            {!sameAsShipping && (
+              <div className="space-y-3">
+                <label className="text-sm font-medium">Select Billing Address</label>
+                {addresses.length > 0 ? (
+                  <div className="grid gap-3">
+                    {addresses.map((addr) => (
+                      <div
+                        key={addr.id}
+                        className={`border p-3 rounded-md cursor-pointer flex items-start gap-3 ${selectedBillingAddress?.id === addr.id ? 'border-primary bg-primary/5' : 'hover:border-gray-300'}`}
+                        onClick={() => setSelectedBillingAddress(addr)}
+                      >
+                        <div className={`mt-1 h-4 w-4 rounded-full border flex items-center justify-center ${selectedBillingAddress?.id === addr.id ? 'border-primary' : 'border-gray-300'}`}>
+                          {selectedBillingAddress?.id === addr.id && <div className="h-2 w-2 rounded-full bg-primary" />}
+                        </div>
+                        <div className="text-sm">
+                          <p className="font-medium">{addr.firstName} {addr.lastName}</p>
+                          <p className="text-muted-foreground">{addr.address1}, {addr.city}</p>
+                        </div>
+                      </div>
+                    ))}
+                    <Button variant="outline" size="sm" asChild className="w-full">
+                      <a href="/account/addresses" target="_blank">Add New Address</a>
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="text-sm text-muted-foreground">
+                    No addresses found. <a href="/account/addresses" className="text-primary hover:underline" target="_blank">Add one here</a>.
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
@@ -259,12 +539,12 @@ export default function CheckoutPage() {
           </Button>
           <Button
             onClick={handlePlaceOrder}
-            disabled={items.length === 0 || isPlacingOrder}
+            disabled={items.length === 0 || isPlacingOrder || (!selectedAddress) || (!sameAsShipping && !selectedBillingAddress) || (shippingRates.length > 0 && !selectedShippingRate)}
           >
             {isPlacingOrder ? 'Placing Order...' : 'Place Order'}
           </Button>
         </div>
-      </div>
-    </div>
+      </div >
+    </div >
   )
 }

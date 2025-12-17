@@ -94,14 +94,16 @@ export function CollectionForm({ collection, initialSelectedProducts = [] }: Col
 
     // Initial load if empty
     if (!browseSearch && browseSearchResults.length === 0) {
-      fetchProducts({ limit: 20 }).then(setBrowseSearchResults).catch(console.error)
+      fetchProducts({ limit: 20 })
+        .then((res) => setBrowseSearchResults(res.products || []))
+        .catch(console.error)
     }
 
     const timer = setTimeout(async () => {
       setIsSearching(true)
       try {
         const results = await fetchProducts({ search: browseSearch, limit: 20 })
-        setBrowseSearchResults(results)
+        setBrowseSearchResults(results.products || [])
         // Update cache with new results found
         setProductsCache(prev => {
           const next = { ...prev }

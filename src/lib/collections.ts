@@ -1,4 +1,5 @@
 import { query, execute } from './db';
+import { updateSeoMetadata, createRedirect, SeoMetadata } from './seo';
 
 // Collection Types
 export type CollectionType = 'manual' | 'smart';
@@ -21,6 +22,7 @@ export async function createCollection(data: {
   seoTitle?: string;
   seoDescription?: string;
   isActive?: boolean;
+  seo?: Partial<SeoMetadata>;
 }) {
   const result = await execute(
     `INSERT INTO categories (name, description, slug, type, conditions, image_url, seo_title, seo_description, status, created_at, updated_at)
@@ -38,7 +40,7 @@ export async function createCollection(data: {
     ]
   );
 
-  const collectionId = result.insertId;
+  const collectionId = result.insertId.toString();
 
   if (data.type === 'manual' && data.productIds && data.productIds.length > 0) {
     // Batch Insert product associations
@@ -69,7 +71,12 @@ export async function createCollection(data: {
     );
   }
 
-  return collectionId.toString();
+  // Handle SEO
+  if (data.seo) {
+    await updateSeoMetadata('category', collectionId, data.seo);
+  }
+
+  return collectionId;
 }
 
 export async function getCollections(options: { search?: string; limit?: number; offset?: number } = {}) {
@@ -149,7 +156,14 @@ export async function getCollection(id: string) {
 export async function getCollectionBySlug(slug: string) {
   const rows = await query('SELECT * FROM categories WHERE slug = ?', [slug]);
   if (rows.length === 0) return null;
-  return mapCollectionFromDb(rows[0]);
+
+  const collection = mapCollectionFromDb(rows[0]);
+
+  // Fetch associated product IDs
+  const productRows = await query('SELECT product_id FROM product_categories WHERE category_id = ?', [collection.id]);
+  collection.productIds = productRows.map((r: any) => r.product_id.toString());
+
+  return collection;
 }
 
 export async function updateCollection(id: string, data: Partial<{
@@ -163,7 +177,17 @@ export async function updateCollection(id: string, data: Partial<{
   seoTitle: string;
   seoDescription: string;
   isActive: boolean;
+  seo: Partial<SeoMetadata>;
 }>) {
+  // Check for slug change for redirects
+  let oldSlug: string | null = null;
+  if (data.slug) {
+    const currentRows = await query('SELECT slug FROM categories WHERE id = ?', [id]);
+    if (currentRows.length > 0) {
+      oldSlug = currentRows[0].slug;
+    }
+  }
+
   const updates: string[] = [];
   const values: any[] = [];
 
@@ -181,6 +205,11 @@ export async function updateCollection(id: string, data: Partial<{
     updates.push('updated_at = NOW()');
     values.push(id);
     await execute(`UPDATE categories SET ${updates.join(', ')} WHERE id = ?`, values);
+  }
+
+  // Create Redirect
+  if (oldSlug && data.slug && oldSlug !== data.slug) {
+    await createRedirect(`/collections/${oldSlug}`, `/collections/${data.slug}`);
   }
 
   if (data.productIds !== undefined && data.type === 'manual') {
@@ -213,6 +242,11 @@ export async function updateCollection(id: string, data: Partial<{
         updateParams
       );
     }
+  }
+
+  // Handle SEO
+  if (data.seo) {
+    await updateSeoMetadata('category', id, data.seo);
   }
 }
 

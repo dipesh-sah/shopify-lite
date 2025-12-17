@@ -1,29 +1,51 @@
-"use server"
+'use server'
 
-import { revalidatePath } from "next/cache"
-import * as db from "@/lib/settings"
+import { getSettings, updateSettings } from '@/lib/settings';
+import { getNumberRanges, updateNumberRange, previewNextNumber } from '@/lib/number-ranges';
+import { getSessionUserWithPermissions, hasPermission } from '@/lib/auth';
+import { revalidatePath } from 'next/cache';
 
 export async function getSettingsAction(category: string) {
-  try {
-    return await db.getSettings(category)
-  } catch (error) {
-    console.error(`Error getting settings for ${category}:`, error)
-    return null
+  // Allow all internal users to read settings for now (or strict RBAC: 'settings.read')
+  const user = await getSessionUserWithPermissions();
+  if (!user) {
+    throw new Error('Unauthorized');
   }
+  return await getSettings(category);
 }
 
 export async function updateSettingsAction(category: string, data: any) {
-  try {
-    await db.updateSettings(category, data)
-    revalidatePath("/admin/settings")
-    return { success: true }
-  } catch (error) {
-    console.error(`Error updating settings for ${category}:`, error)
-    return { error: "Failed to update settings" }
+  const user = await getSessionUserWithPermissions();
+  if (!user || (!hasPermission(user.permissions, 'settings.update') && !hasPermission(user.permissions, '*'))) {
+    throw new Error('Unauthorized');
   }
+
+  await updateSettings(category, data);
+  revalidatePath('/admin');
 }
 
-// Specific wrappers if needed, or just use generic getSettingsAction
-export async function getGeneralSettingsAction() {
-  return getSettingsAction('general')
+export async function getNumberRangesAction() {
+  const user = await getSessionUserWithPermissions();
+  if (!user) {
+    throw new Error('Unauthorized');
+  }
+  return await getNumberRanges();
+}
+
+export async function updateNumberRangeAction(id: string, data: any) {
+  const user = await getSessionUserWithPermissions();
+  if (!user || (!hasPermission(user.permissions, 'settings.update') && !hasPermission(user.permissions, '*'))) {
+    throw new Error('Unauthorized');
+  }
+
+  await updateNumberRange(id, data);
+  revalidatePath('/admin');
+}
+
+export async function previewNextNumberAction(type: string) {
+  const user = await getSessionUserWithPermissions();
+  if (!user) {
+    throw new Error('Unauthorized');
+  }
+  return await previewNextNumber(type);
 }

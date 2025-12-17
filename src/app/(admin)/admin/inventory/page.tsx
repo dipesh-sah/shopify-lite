@@ -10,7 +10,8 @@ export default async function InventoryPage(props: Props) {
   const search = typeof searchParams.q === 'string' ? searchParams.q : undefined
 
   // Fetch products with search if needed
-  const products = await getProductsAction({ search })
+  const data = await getProductsAction({ search })
+  const products = data.products || []
 
   // Build flattened inventory list
   const items = products.flatMap((p: any) => {

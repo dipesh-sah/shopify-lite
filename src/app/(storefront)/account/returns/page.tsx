@@ -29,8 +29,8 @@ export default function ReturnsPage() {
     setLoading(true);
     try {
       const [ordersData, returnsData] = await Promise.all([
-        getCustomerOrdersAction(user?.email || undefined, user?.uid),
-        getCustomerReturnsAction(user?.uid!)
+        getCustomerOrdersAction(user?.email || undefined, user?.id),
+        getCustomerReturnsAction(user?.id!)
       ]);
       // Only delivered orders are eligible for return
       setOrders(ordersData.filter((o: any) => o.status === 'DELIVERED'));

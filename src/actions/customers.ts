@@ -1,14 +1,16 @@
 "use server"
 
-import { getCustomers, getCustomer } from "@/lib/firestore"
+import { getCustomers, getCustomer, createCustomer, updateCustomer, deleteCustomer } from "@/lib/customers"
+import { revalidatePath } from "next/cache"
+import { redirect } from "next/navigation"
 
-export async function getCustomersAction() {
+export async function getCustomersAction(options?: { search?: string; limit?: number; offset?: number }) {
   try {
-    const data = await getCustomers()
+    const data = await getCustomers(options)
     return data
   } catch (error) {
     console.error("Error getting customers:", error)
-    return []
+    return { customers: [], totalCount: 0 }
   }
 }
 
@@ -19,5 +21,39 @@ export async function getCustomerAction(id: string) {
   } catch (error) {
     console.error("Error getting customer:", error)
     return null
+  }
+}
+
+export async function createCustomerAction(data: any) {
+  try {
+    const id = await createCustomer(data)
+    revalidatePath("/admin/customers")
+    return { success: true, id }
+  } catch (error) {
+    console.error("Error creating customer:", error)
+    return { success: false, error: "Failed to create customer" }
+  }
+}
+
+export async function updateCustomerAction(id: string, data: any) {
+  try {
+    await updateCustomer(id, data)
+    revalidatePath("/admin/customers")
+    revalidatePath(`/admin/customers/${id}`)
+    return { success: true }
+  } catch (error) {
+    console.error("Error updating customer:", error)
+    return { success: false, error: "Failed to update customer" }
+  }
+}
+
+export async function deleteCustomerAction(id: string) {
+  try {
+    await deleteCustomer(id)
+    revalidatePath("/admin/customers")
+    return { success: true }
+  } catch (error) {
+    console.error("Error deleting customer:", error)
+    return { success: false, error: "Failed to delete customer" }
   }
 }

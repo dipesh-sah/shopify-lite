@@ -2,11 +2,11 @@
 
 import React, { useEffect, useState } from 'react'
 
-type ToastType = 'success' | 'error' | 'info'
+type ToastType = 'success' | 'error' | 'info' | 'warning'
 
 export function showToast(message: string, type: ToastType = 'info', duration = 4000) {
   if (typeof window === 'undefined') return
-  const id = `${Date.now()}-${Math.random().toString(36).slice(2,8)}`
+  const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
   window.dispatchEvent(new CustomEvent('app-toast', { detail: { id, message, type, duration } }))
 }
 
@@ -31,7 +31,7 @@ export default function ToastContainer() {
   return (
     <div className="fixed top-4 right-4 z-[9999] flex flex-col gap-2">
       {toasts.map((t) => (
-        <div key={t.id} className={`max-w-sm px-4 py-2 rounded shadow text-white ${t.type === 'error' ? 'bg-red-600' : t.type === 'success' ? 'bg-green-600' : 'bg-gray-800'}`}>
+        <div key={t.id} className={`max-w-sm px-4 py-2 rounded shadow text-white ${t.type === 'error' ? 'bg-red-600' : t.type === 'success' ? 'bg-green-600' : t.type === 'warning' ? 'bg-yellow-600' : 'bg-gray-800'}`}>
           {t.message}
         </div>
       ))}

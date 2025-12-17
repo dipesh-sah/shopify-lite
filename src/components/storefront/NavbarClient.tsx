@@ -1,8 +1,7 @@
 'use client'
 
 import Link from "next/link"
-import { ShoppingCart, User, Search, LogOut, ChevronDown } from "lucide-react"
-import { useAuth } from "@/contexts/AuthContext"
+import { ShoppingCart, Search, ChevronDown } from "lucide-react"
 import { useCart } from "@/store/cart"
 import { useEffect, useState } from "react"
 
@@ -25,10 +24,10 @@ interface Subcategory {
 interface NavbarClientProps {
   categories: Category[]
   subcategories: Subcategory[]
+  children?: React.ReactNode
 }
 
-export function NavbarClient({ categories, subcategories }: NavbarClientProps) {
-  const { user, signOut } = useAuth()
+export function NavbarClient({ categories, subcategories, children }: NavbarClientProps) {
   const items = useCart((state) => state.items)
   const [mounted, setMounted] = useState(false)
 
@@ -38,17 +37,7 @@ export function NavbarClient({ categories, subcategories }: NavbarClientProps) {
 
   const itemCount = mounted ? items.reduce((sum, item) => sum + item.quantity, 0) : 0
 
-  const [showUserMenu, setShowUserMenu] = useState(false)
   const [hoveredCategory, setHoveredCategory] = useState<string | null>(null)
-
-  const handleSignOut = async () => {
-    try {
-      await signOut()
-      setShowUserMenu(false)
-    } catch (error) {
-      console.error('Sign out error:', error)
-    }
-  }
 
   // Helper to get subcategories for a category
   const getCategorySubcategories = (categoryId: string) => {
@@ -113,7 +102,7 @@ export function NavbarClient({ categories, subcategories }: NavbarClientProps) {
           <button className="p-2 hover:bg-accent rounded-full">
             <Search className="h-5 w-5" />
           </button>
-          <Link href="/cart" className="p-2 hover:bg-accent rounded-full relative">
+          <Link href="#" onClick={(e) => { e.preventDefault(); useCart.getState().openCart() }} className="p-2 hover:bg-accent rounded-full relative">
             <ShoppingCart className="h-5 w-5" />
             {itemCount > 0 && (
               <span className="absolute top-0 right-0 h-4 w-4 rounded-full bg-primary text-[10px] font-bold text-primary-foreground flex items-center justify-center">
@@ -121,52 +110,15 @@ export function NavbarClient({ categories, subcategories }: NavbarClientProps) {
               </span>
             )}
           </Link>
-          {user ? (
-            <div className="relative">
-              <button
-                onClick={() => setShowUserMenu(!showUserMenu)}
-                className="p-2 hover:bg-accent rounded-full transition-colors"
-              >
-                <User className="h-5 w-5" />
-              </button>
-              {showUserMenu && (
-                <div className="absolute right-0 mt-2 w-48 rounded-lg border bg-card shadow-lg animate-in fade-in slide-in-from-top-2 z-50">
-                  <div className="p-4 border-b">
-                    <p className="text-sm font-medium truncate">{user.email}</p>
-                  </div>
-                  <div className="p-2 space-y-1">
-                    <Link
-                      href="/account"
-                      className="block px-4 py-2 text-sm rounded-md hover:bg-accent transition-colors"
-                      onClick={() => setShowUserMenu(false)}
-                    >
-                      My Account
-                    </Link>
-                    <Link
-                      href="/orders"
-                      className="block px-4 py-2 text-sm rounded-md hover:bg-accent transition-colors"
-                      onClick={() => setShowUserMenu(false)}
-                    >
-                      My Orders
-                    </Link>
-                    <button
-                      onClick={handleSignOut}
-                      className="w-full text-left px-4 py-2 text-sm rounded-md hover:bg-accent transition-colors flex items-center gap-2 text-red-600 hover:text-red-700"
-                    >
-                      <LogOut className="h-4 w-4" />
-                      Sign Out
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          ) : (
-            <Link href="/signin" className="text-sm hover:text-primary font-medium">
-              Sign In
-            </Link>
-          )}
+          {children}
+          <div className="absolute">
+            {/* Dynamic import or just render if client */}
+            {mounted && <CartDrawer />}
+          </div>
         </div>
       </div>
     </header>
   )
 }
+
+import { CartDrawer } from "./CartDrawer"

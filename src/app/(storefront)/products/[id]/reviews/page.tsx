@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
-import { createReviewAction, getProductReviewsAction } from '@/actions/reviews'
+import { createReviewAction, getReviewsAction } from '@/actions/reviews'
 import { getProductAction } from '@/actions/products'
 import { showToast } from '@/components/ui/Toast'
 import { Button } from '@/components/ui/button'
@@ -30,7 +30,7 @@ export default function ProductReviewsPage({ params }: { params: Promise<{ id: s
         const prod = await getProductAction(resolvedParams.id)
         setProduct(prod)
 
-        const revs = await getProductReviewsAction(resolvedParams.id, true)
+        const revs = await getReviewsAction(resolvedParams.id)
         setReviews(revs)
       } catch (error) {
         console.error('Failed to load data:', error)
@@ -55,23 +55,25 @@ export default function ProductReviewsPage({ params }: { params: Promise<{ id: s
     }
 
     setSubmitting(true)
+    const formDataObj = new FormData()
+    formDataObj.append('productId', product.id)
+    formDataObj.append('userId', user.id) // Fixed: user.uid -> user.id
+    formDataObj.append('email', user.email)
+    formDataObj.append('name', user.firstName ? `${user.firstName} ${user.lastName}` : (user.email?.split('@')[0] || 'Anonymous'))
+    formDataObj.append('rating', formData.rating.toString())
+    formDataObj.append('title', formData.title)
+    formDataObj.append('content', formData.content)
+
+    setSubmitting(true)
     try {
-      await createReviewAction({
-        productId: product.id,
-        userId: user.uid,
-        userName: user.email?.split('@')[0] || 'Anonymous',
-        rating: formData.rating,
-        title: formData.title,
-        content: formData.content,
-        isApproved: true, // Auto-approve for now (can be changed to require moderation)
-      })
+      await createReviewAction(formDataObj)
 
       showToast('Review submitted successfully!', 'success')
       setFormData({ rating: 5, title: '', content: '' })
       setShowForm(false)
 
       // Reload reviews
-      const revs = await getProductReviewsAction(product.id, true)
+      const revs = await getReviewsAction(product.id)
       setReviews(revs)
     } catch (error) {
       console.error('Failed to submit review:', error)
@@ -80,6 +82,7 @@ export default function ProductReviewsPage({ params }: { params: Promise<{ id: s
       setSubmitting(false)
     }
   }
+
 
   if (loading) {
     return (

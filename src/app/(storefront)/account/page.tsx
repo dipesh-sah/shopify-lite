@@ -91,8 +91,11 @@ export default function AccountPage() {
           </Link>
 
           {/* Shipping Addresses Card */}
-          <div className="rounded-lg border bg-card p-6 shadow-sm opacity-60 pointer-events-none">
-            <div className="flex items-center gap-4 mb-6">
+          <Link
+            href="/account/addresses"
+            className="rounded-lg border bg-card p-6 shadow-sm hover:shadow-md transition-all hover:border-green-500/50"
+          >
+            <div className="flex items-center gap-4 mb-3">
               <div className="w-14 h-14 bg-green-50 rounded-full flex items-center justify-center flex-shrink-0">
                 <MapPin className="w-7 h-7 text-green-600" />
               </div>
@@ -102,12 +105,15 @@ export default function AccountPage() {
               </div>
             </div>
             <p className="text-xs text-muted-foreground leading-relaxed">
-              Coming soon
+              Add or remove shipping addresses for faster checkout.
             </p>
-          </div>
+          </Link>
 
           {/* Settings Card */}
-          <div className="rounded-lg border bg-card p-6 shadow-sm opacity-60 pointer-events-none">
+          <Link
+            href="/account/settings"
+            className="rounded-lg border bg-card p-6 shadow-sm hover:shadow-md transition-all hover:border-purple-500/50"
+          >
             <div className="flex items-center gap-4 mb-6">
               <div className="w-14 h-14 bg-purple-50 rounded-full flex items-center justify-center flex-shrink-0">
                 <Settings className="w-7 h-7 text-purple-600" />
@@ -118,9 +124,9 @@ export default function AccountPage() {
               </div>
             </div>
             <p className="text-xs text-muted-foreground leading-relaxed">
-              Coming soon
+              Update your profile information and security preferences.
             </p>
-          </div>
+          </Link>
         </div>
 
         {/* Quick Actions */}

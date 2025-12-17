@@ -1,27 +1,24 @@
 'use client'
 
 import { createContext, useContext, useEffect, useState } from 'react'
+import { getSessionAction, logoutAction } from "@/actions/customer-auth"
 
-// Mock User Type
 interface User {
-  uid: string
-  email: string | null
-  displayName: string | null
+  id: string
+  email: string
+  firstName: string
+  lastName: string
 }
 
 interface AuthContextType {
   user: User | null
   loading: boolean
-  signIn: (email: string, password: string) => Promise<void>
-  signUp: (email: string, password: string) => Promise<void>
   signOut: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType>({
   user: null,
   loading: true,
-  signIn: async () => { },
-  signUp: async () => { },
   signOut: async () => { },
 })
 
@@ -30,36 +27,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Check local storage for mock session
-    const stored = typeof window !== 'undefined' ? localStorage.getItem('mock_user') : null
-    if (stored) {
-      setUser(JSON.parse(stored))
+    async function initAuth() {
+      try {
+        const sessionUser = await getSessionAction()
+        setUser(sessionUser)
+      } catch (error) {
+        console.error("Failed to fetch session:", error)
+      } finally {
+        setLoading(false)
+      }
     }
-    setLoading(false)
+    initAuth()
   }, [])
 
-  const signIn = async (email: string, password: string) => {
-    // Mock Sign In
-    const mockUser = {
-      uid: 'mock-user-123',
-      email: email,
-      displayName: email.split('@')[0]
-    }
-    setUser(mockUser)
-    localStorage.setItem('mock_user', JSON.stringify(mockUser))
-  }
-
-  const signUp = async (email: string, password: string) => {
-    await signIn(email, password)
-  }
-
   const signOut = async () => {
+    await logoutAction()
     setUser(null)
-    localStorage.removeItem('mock_user')
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, signIn, signUp, signOut }}>
+    <AuthContext.Provider value={{ user, loading, signOut }}>
       {children}
     </AuthContext.Provider>
   )

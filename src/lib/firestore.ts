@@ -34,11 +34,16 @@ export const getAttributeGroups = getAttributeGroupsMySQL;
 // Stubs for other features (Orders, Customers, etc.)
 // These prevent the build from failing but don't persist data yet.
 
-export async function createOrder(data: any): Promise<any> { console.warn('createOrder not implemented'); return 'mock-order-id'; }
-export async function getOrders(): Promise<any[]> { return []; }
-export async function getOrder(id: string): Promise<any> { return null; }
-export async function updateOrderStatus(id?: string, status?: string) { console.warn('updateOrderStatus stub called'); }
-export async function deleteOrder(id?: string) { console.warn('deleteOrder stub called'); }
+// Orders (Shimmed with MySQL)
+import { createOrderMySQL, getOrderMySQL, updateOrderStatusMySQL, updatePaymentStatusMySQL, deleteOrderMySQL, getOrdersMySQL, getCustomerOrdersMySQL } from './orders';
+
+export const createOrder = createOrderMySQL;
+export const getOrders = getOrdersMySQL;
+export const getOrder = getOrderMySQL;
+export const updateOrderStatus = updateOrderStatusMySQL;
+export const updatePaymentStatus = updatePaymentStatusMySQL;
+export const deleteOrder = deleteOrderMySQL;
+export const getCustomerOrders = getCustomerOrdersMySQL;
 
 export async function getCustomers(): Promise<any[]> { return []; }
 export async function getCustomer(id: string): Promise<any> { return null; }

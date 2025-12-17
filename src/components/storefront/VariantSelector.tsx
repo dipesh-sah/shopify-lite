@@ -1,13 +1,13 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 
 interface Variant {
   id: string
   sku: string
-  stock: number
-  priceDelta: number
+  inventoryQuantity: number
+  price: number
   options: Record<string, string>
   mediaIds?: string[]
 }
@@ -16,6 +16,7 @@ interface VariantSelectorProps {
   variants: Variant[]
   attributeGroups: any[]
   onVariantSelect: (variant: Variant, selectedOptions: Record<string, string>) => void
+  basePrice?: number
   children?: React.ReactNode
 }
 
@@ -23,9 +24,13 @@ export function VariantSelector({
   variants,
   attributeGroups,
   onVariantSelect,
+  basePrice = 0,
   children
 }: VariantSelectorProps) {
-  const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>({})
+  const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>(() => {
+    // Default to first variant's options if available
+    return variants.length > 0 ? variants[0].options : {}
+  })
 
   // Find matching variant based on selected options
   const selectedVariant = useMemo(() => {
@@ -39,6 +44,13 @@ export function VariantSelector({
     })
   }, [selectedOptions, variants, attributeGroups])
 
+  // Notify parent when selected variant changes
+  useEffect(() => {
+    if (selectedVariant) {
+      onVariantSelect(selectedVariant, selectedOptions)
+    }
+  }, [selectedVariant, onVariantSelect]) // Dependencies need to be stable
+
   const handleOptionChange = (attributeId: string, value: string) => {
     const newOptions = { ...selectedOptions, [attributeId]: value }
     setSelectedOptions(newOptions)
@@ -50,7 +62,8 @@ export function VariantSelector({
     }
   }
 
-  const isOutOfStock = selectedVariant && selectedVariant.stock <= 0
+  const isOutOfStock = selectedVariant && selectedVariant.inventoryQuantity <= 0
+  const priceDelta = selectedVariant && basePrice ? selectedVariant.price - basePrice : 0
 
   return (
     <div className="space-y-4">
@@ -67,7 +80,7 @@ export function VariantSelector({
                 const optionMatches = Object.entries(selectedOptions).every(
                   ([key, val]) => key === group.id ? true : v.options?.[key] === val
                 )
-                return optionMatches && v.options?.[group.id] === option && v.stock > 0
+                return optionMatches && v.options?.[group.id] === option && v.inventoryQuantity > 0
               })
 
               return (
@@ -75,13 +88,12 @@ export function VariantSelector({
                   key={option}
                   onClick={() => handleOptionChange(group.id, option)}
                   disabled={!isAvailable}
-                  className={`px-4 py-2 border rounded-lg transition-colors ${
-                    isSelected
-                      ? 'border-primary bg-primary text-primary-foreground'
-                      : isAvailable
+                  className={`px-4 py-2 border rounded-lg transition-colors ${isSelected
+                    ? 'border-primary bg-primary text-primary-foreground'
+                    : isAvailable
                       ? 'border-border hover:border-primary cursor-pointer'
                       : 'border-border bg-muted text-muted-foreground cursor-not-allowed opacity-50'
-                  }`}
+                    }`}
                 >
                   {option}
                 </button>
@@ -98,32 +110,20 @@ export function VariantSelector({
             <span className="text-sm text-muted-foreground">SKU: </span>
             <span className="font-medium">{selectedVariant.sku}</span>
           </div>
-          {selectedVariant.priceDelta !== 0 && (
+          {priceDelta !== 0 && (
             <div>
               <span className="text-sm text-muted-foreground">Price adjustment: </span>
-              <span className="font-medium">{selectedVariant.priceDelta > 0 ? '+' : ''}{selectedVariant.priceDelta.toFixed(2)}</span>
+              <span className="font-medium">{priceDelta > 0 ? '+' : ''}{priceDelta.toFixed(2)}</span>
             </div>
           )}
           <div>
             <span className="text-sm text-muted-foreground">Stock: </span>
             <span className={`font-medium ${isOutOfStock ? 'text-red-500' : 'text-green-600'}`}>
-              {isOutOfStock ? 'Out of Stock' : `${selectedVariant.stock} available`}
+              {isOutOfStock ? 'Out of Stock' : `${selectedVariant.inventoryQuantity} available`}
             </span>
           </div>
         </div>
       )}
-
-      {/* Add to Cart Button */}
-      <div>
-        <Button
-          onClick={handleAddToCart}
-          disabled={!selectedVariant || isOutOfStock || false}
-          className="w-full"
-          size="lg"
-        >
-          {isOutOfStock ? 'Out of Stock' : 'Add to Cart'}
-        </Button>
-      </div>
 
       {children}
     </div>

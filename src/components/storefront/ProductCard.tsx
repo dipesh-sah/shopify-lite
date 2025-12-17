@@ -1,6 +1,7 @@
 import Link from "next/link"
 import { type Product } from "@/store/cart"
 import { ShoppingCart } from "lucide-react"
+import { WishlistButton } from "./WishlistButton"
 
 interface ProductCardProps {
   product: any
@@ -16,10 +17,10 @@ export function ProductCard({ product }: ProductCardProps) {
     <div className="group relative rounded-lg border bg-card p-4 shadow-sm transition-shadow hover:shadow-md flex flex-col">
       <Link href={`/products/${product.id}`} className="block">
         <div className="aspect-square w-full overflow-hidden rounded-md bg-muted mb-4 relative">
-          {product.images && product.images[0] ? (
+          {product.images && product.images.length > 0 ? (
             <img
-              src={product.images[0]}
-              alt={product.name}
+              src={typeof product.images[0] === 'string' ? product.images[0] : product.images[0].url}
+              alt={product.images[0].altText || product.name}
               className="h-full w-full object-cover object-center group-hover:opacity-75 transition-opacity"
             />
           ) : (
@@ -79,12 +80,15 @@ export function ProductCard({ product }: ProductCardProps) {
             )}
           </div>
 
-          <Link
-            href={`/products/${product.id}`}
-            className="rounded-full bg-primary p-2 text-primary-foreground hover:bg-primary/90 transition-colors"
-          >
-            <ShoppingCart className="h-4 w-4" />
-          </Link>
+          <div className="flex gap-2">
+            <WishlistButton productId={product.id} />
+            <Link
+              href={`/products/${product.id}`}
+              className="rounded-full bg-primary p-2 text-primary-foreground hover:bg-primary/90 transition-colors"
+            >
+              <ShoppingCart className="h-4 w-4" />
+            </Link>
+          </div>
         </div>
 
         {/* Stock indicator */}

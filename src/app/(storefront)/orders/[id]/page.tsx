@@ -10,6 +10,8 @@ import { ArrowLeft, Package, CheckCircle, Clock, AlertCircle, MapPin, Mail, Phon
 
 interface OrderItem {
   productId: string
+  name?: string
+  image?: string
   quantity: number
   price: number
 }
@@ -23,21 +25,18 @@ interface Order {
   items: OrderItem[]
   customerEmail?: string
   shippingAddress?: {
-    fullName?: string
+    firstName?: string
+    lastName?: string
     phone?: string
-    address?: string
+    address1?: string
+    address2?: string
     city?: string
-    state?: string
-    zipCode?: string
+    province?: string
+    zip?: string
     country?: string
   }
-}
-
-interface Product {
-  id: string
-  name: string
-  images?: string[]
-  price: number
+  taxTotal?: number
+  taxBreakdown?: any
 }
 
 export default function OrderDetailsPage() {
@@ -45,7 +44,6 @@ export default function OrderDetailsPage() {
   const router = useRouter()
   const params = useParams()
   const [order, setOrder] = useState<Order | null>(null)
-  const [products, setProducts] = useState<Map<string, Product>>(new Map())
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -57,7 +55,7 @@ export default function OrderDetailsPage() {
       return
     }
 
-    if (user?.uid && orderId) {
+    if (user?.id && orderId) {
       loadOrderDetails()
     }
   }, [user, loading, orderId, router])
@@ -73,28 +71,12 @@ export default function OrderDetailsPage() {
       }
 
       // Check if the order belongs to the current user
-      if (orderData.userId && orderData.userId !== user?.uid) {
+      if (orderData.userId && orderData.userId !== user?.id) {
         setError('You do not have permission to view this order.')
         return
       }
 
       setOrder(orderData as Order)
-
-      // Load product details for all items
-      if (orderData.items) {
-        const productMap = new Map<string, Product>()
-        for (const item of orderData.items) {
-          try {
-            const product = await getProductAction(item.productId)
-            if (product) {
-              productMap.set(item.productId, product as any)
-            }
-          } catch (err) {
-            console.error(`Failed to load product ${item.productId}:`, err)
-          }
-        }
-        setProducts(productMap)
-      }
     } catch (err) {
       console.error('Failed to load order details:', err)
       setError('Failed to load order details. Please try again.')
@@ -216,50 +198,47 @@ export default function OrderDetailsPage() {
               <h2 className="font-semibold mb-4">Order Items</h2>
               <div className="space-y-4">
                 {order.items && order.items.length > 0 ? (
-                  order.items.map((item, index) => {
-                    const product = products.get(item.productId)
-                    return (
-                      <div key={index} className="flex gap-4 pb-4 border-b last:border-0 last:pb-0">
-                        {/* Product Image */}
-                        <div className="w-20 h-20 bg-muted rounded-md overflow-hidden flex-shrink-0">
-                          {product?.images && product.images.length > 0 ? (
-                            <img
-                              src={product.images[0]}
-                              alt={product.name}
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center">
-                              <Package className="w-8 h-8 text-muted-foreground" />
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Product Details */}
-                        <div className="flex-1">
-                          <Link
-                            href={`/products/${item.productId}`}
-                            className="font-medium hover:text-primary transition-colors"
-                          >
-                            {product?.name || 'Product'}
-                          </Link>
-                          <p className="text-sm text-muted-foreground mt-1">
-                            Quantity: {item.quantity}
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            Price: ${Number(item.price).toFixed(2)} each
-                          </p>
-                        </div>
-
-                        {/* Item Total */}
-                        <div className="text-right flex-shrink-0">
-                          <p className="font-semibold">
-                            ${Number(item.price * item.quantity).toFixed(2)}
-                          </p>
-                        </div>
+                  order.items.map((item, index) => (
+                    <div key={index} className="flex gap-4 pb-4 border-b last:border-0 last:pb-0">
+                      {/* Product Image */}
+                      <div className="w-20 h-20 bg-muted rounded-md overflow-hidden flex-shrink-0">
+                        {item.image ? (
+                          <img
+                            src={item.image}
+                            alt={item.name || 'Product'}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center">
+                            <Package className="w-8 h-8 text-muted-foreground" />
+                          </div>
+                        )}
                       </div>
-                    )
-                  })
+
+                      {/* Product Details */}
+                      <div className="flex-1">
+                        <Link
+                          href={`/products/${item.productId}`}
+                          className="font-medium hover:text-primary transition-colors"
+                        >
+                          {item.name || 'Product'}
+                        </Link>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          Quantity: {item.quantity}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          Price: ${Number(item.price).toFixed(2)} each
+                        </p>
+                      </div>
+
+                      {/* Item Total */}
+                      <div className="text-right flex-shrink-0">
+                        <p className="font-semibold">
+                          ${Number(item.price * item.quantity).toFixed(2)}
+                        </p>
+                      </div>
+                    </div>
+                  ))
                 ) : (
                   <p className="text-muted-foreground text-sm">No items in this order</p>
                 )}
@@ -274,21 +253,32 @@ export default function OrderDetailsPage() {
                   Shipping Address
                 </h2>
                 <div className="space-y-2 text-sm">
-                  {order.shippingAddress.fullName && (
-                    <p className="font-medium">{order.shippingAddress.fullName}</p>
+                  {(order.shippingAddress.firstName || order.shippingAddress.lastName) && (
+                    <p className="font-medium">
+                      {[order.shippingAddress.firstName, order.shippingAddress.lastName].filter(Boolean).join(' ')}
+                    </p>
                   )}
-                  {order.shippingAddress.address && (
-                    <p>{order.shippingAddress.address}</p>
+                  {order.shippingAddress.address1 && (
+                    <p>{order.shippingAddress.address1}</p>
                   )}
-                  {order.shippingAddress.city && (
+                  {order.shippingAddress.address2 && (
+                    <p>{order.shippingAddress.address2}</p>
+                  )}
+                  {(order.shippingAddress.city || order.shippingAddress.province || order.shippingAddress.zip) && (
                     <p>
-                      {order.shippingAddress.city}
-                      {order.shippingAddress.state && `, ${order.shippingAddress.state}`}
-                      {order.shippingAddress.zipCode && ` ${order.shippingAddress.zipCode}`}
+                      {[order.shippingAddress.city, order.shippingAddress.province, order.shippingAddress.zip]
+                        .filter(Boolean)
+                        .join(', ')}
                     </p>
                   )}
                   {order.shippingAddress.country && (
                     <p>{order.shippingAddress.country}</p>
+                  )}
+                  {order.shippingAddress.phone && (
+                    <p className="flex items-center gap-2 mt-2 text-muted-foreground">
+                      <Phone className="w-3 h-3" />
+                      {order.shippingAddress.phone}
+                    </p>
                   )}
                 </div>
               </div>
@@ -311,8 +301,28 @@ export default function OrderDetailsPage() {
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Tax</span>
-                  <span>${Number(order.total * 0.1).toFixed(2)}</span>
+                  <span>${Number(order.taxTotal || 0).toFixed(2)}</span>
                 </div>
+                {/* Tax Breakdown */}
+                {(() => {
+                  let breakdown = order.taxBreakdown;
+                  if (typeof breakdown === 'string') {
+                    try { breakdown = JSON.parse(breakdown); } catch (e) { }
+                  }
+                  if (Array.isArray(breakdown) && breakdown.length > 0) {
+                    return (
+                      <div className="text-xs text-muted-foreground space-y-1 pl-2 border-l">
+                        {breakdown.map((line: any, i: number) => (
+                          <div key={i} className="flex justify-between">
+                            <span>{line.title} ({line.rate}%)</span>
+                            <span>${Number(line.amount).toFixed(2)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  }
+                  return null;
+                })()}
                 <div className="border-t pt-3 flex justify-between">
                   <span className="font-semibold">Total</span>
                   <span className="text-lg font-bold text-primary">
@@ -333,8 +343,8 @@ export default function OrderDetailsPage() {
                 <div>
                   <p className="text-xs text-muted-foreground uppercase mb-1">Order Date</p>
                   <p className="text-sm">
-                    {order.createdAt?.toDate
-                      ? order.createdAt.toDate().toLocaleDateString('en-US', {
+                    {order.createdAt
+                      ? new Date(order.createdAt).toLocaleDateString('en-US', {
                         year: 'numeric',
                         month: 'long',
                         day: 'numeric',

@@ -37,9 +37,9 @@ export default function BulkOrderPage() {
   async function loadProducts() {
     setLoading(true);
     try {
-      const data = await getProductsAction();
-      setProducts(data);
-      setFilteredProducts(data);
+      const data = await getProductsAction({ limit: 100 });
+      setProducts(data.products || []);
+      setFilteredProducts(data.products || []);
     } catch (error) {
       console.error('Error loading products:', error);
     } finally {
