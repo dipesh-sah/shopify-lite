@@ -13,6 +13,7 @@ export interface Promotion {
   startDate: Date;
   endDate: Date;
   isActive: boolean;
+  ruleId?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -38,14 +39,15 @@ export async function createPromotion(data: Partial<Promotion> = {}) {
     data.maxUsages || 0,
     data.startDate,
     data.endDate,
-    data.isActive ? 1 : 0
+    data.isActive ? 1 : 0,
+    data.ruleId || null
   ];
 
   const result = await execute(
     `INSERT INTO promotions (
       code, description, discount_type, discount_value, min_order_amount, 
-      max_usages, start_date, end_date, is_active, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+      max_usages, start_date, end_date, is_active, rule_id, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
     params
   );
 
@@ -71,6 +73,7 @@ export async function updatePromotion(id: string, data: Partial<Promotion>) {
   addUpdate('max_usages', data.maxUsages);
   addUpdate('start_date', data.startDate);
   addUpdate('end_date', data.endDate);
+  addUpdate('rule_id', data.ruleId);
 
   if (data.isActive !== undefined) {
     addUpdate('is_active', data.isActive ? 1 : 0);
@@ -100,6 +103,7 @@ function mapPromotionFromDb(row: any): Promotion {
     startDate: row.start_date,
     endDate: row.end_date,
     isActive: Boolean(row.is_active),
+    ruleId: row.rule_id,
     createdAt: row.created_at,
     updatedAt: row.updated_at
   };

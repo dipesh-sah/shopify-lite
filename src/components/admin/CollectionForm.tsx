@@ -188,7 +188,6 @@ export function CollectionForm({ collection, initialSelectedProducts = [] }: Col
           <h1 className="text-xl font-bold">{collection ? collection.name : "Create collection"}</h1>
         </div>
         <div className="flex items-center gap-2">
-          {collection && <Button variant="secondary" size="sm">Duplicate</Button>}
           {collection && <Button variant="secondary" size="sm">View</Button>}
           <Button variant="secondary" size="sm">More actions</Button>
           <Button onClick={handleSave} disabled={loading} size="sm">

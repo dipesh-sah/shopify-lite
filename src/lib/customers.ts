@@ -46,26 +46,26 @@ export async function getCustomers(options: { search?: string; limit?: number; o
   const params: any[] = [];
 
   if (options.search) {
-    whereClause += ' AND (first_name LIKE ? OR last_name LIKE ? OR email LIKE ?)';
+    whereClause += ' AND (c.first_name LIKE ? OR c.last_name LIKE ? OR c.email LIKE ?)';
     params.push(`%${options.search}%`, `%${options.search}%`, `%${options.search}%`);
   }
 
   // Get total count
   const countResult = await query(
-    `SELECT COUNT(*) as total FROM customers ${whereClause}`,
+    `SELECT COUNT(*) as total FROM customers c ${whereClause}`,
     params
   );
   const totalCount = countResult[0]?.total || 0;
 
-  let sql = `SELECT * FROM customers ${whereClause}`;
+  // Main Query using Subqueries to avoid GROUP BY issues
+  let sql = `SELECT * FROM customers c ${whereClause}`;
 
   if (options.sort) {
-    // Basic sort handling - expand as needed
-    if (options.sort === 'spent_desc') sql += ' ORDER BY total_spent DESC';
-    else if (options.sort === 'created_desc') sql += ' ORDER BY created_at DESC';
-    else sql += ' ORDER BY created_at DESC';
+    if (options.sort === 'spent_desc') sql += ' ORDER BY calculated_total_spent DESC';
+    else if (options.sort === 'created_desc') sql += ' ORDER BY c.created_at DESC';
+    else sql += ' ORDER BY c.created_at DESC';
   } else {
-    sql += ' ORDER BY created_at DESC';
+    sql += ' ORDER BY c.created_at DESC';
   }
 
   if (options.limit) {
@@ -78,13 +78,24 @@ export async function getCustomers(options: { search?: string; limit?: number; o
     params.push(options.offset);
   }
 
-  const rows = await query(sql, params);
+  try {
+    const rows = await query(sql, params);
 
-  // Fetch default addresses for the list (optimization: join or separate query)
-  // For now, simpler map
-  const customers = rows.map(mapCustomerFromDb);
+    const customers = rows.map(row => ({
+      ...mapCustomerFromDb(row),
+      // For now, we rely on the denormalized columns in the customers table.
+      // If we need live calculation or location, we can add it back later properly.
+      billingCity: row.billing_city || undefined,
+      billingCountry: row.billing_country || undefined
+    }));
 
-  return { customers, totalCount };
+    return { customers, totalCount };
+  } catch (error) {
+    console.error('SQL Error in getCustomers:', error);
+    console.error('SQL Query:', sql);
+    console.error('SQL Params:', params);
+    throw error;
+  }
 }
 
 export async function getCustomer(id: string) {
@@ -122,8 +133,8 @@ export async function createCustomer(data: {
   address?: Partial<CustomerAddress>; // Initial address
 }) {
   const result = await execute(
-    `INSERT INTO customers (first_name, last_name, email, phone, password, notes, tags, accepts_marketing, profile_image_url, preferences, is_active, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+    `INSERT INTO customers(first_name, last_name, email, phone, password, notes, tags, accepts_marketing, profile_image_url, preferences, is_active, created_at, updated_at)
+  VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
     [
       data.firstName,
       data.lastName,
@@ -169,7 +180,7 @@ export async function updateCustomer(id: string, data: Partial<Customer>) {
   if (updates.length > 0) {
     updates.push('updated_at = NOW()');
     values.push(id);
-    await execute(`UPDATE customers SET ${updates.join(', ')} WHERE id = ?`, values);
+    await execute(`UPDATE customers SET ${updates.join(', ')} WHERE id = ? `, values);
   }
 }
 
@@ -185,8 +196,8 @@ export async function createCustomerAddress(customerId: string, data: Omit<Custo
   }
 
   const result = await execute(
-    `INSERT INTO customer_addresses (customer_id, first_name, last_name, company, address1, address2, city, province, province_code, country, country_code, zip, phone, is_default, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+    `INSERT INTO customer_addresses(customer_id, first_name, last_name, company, address1, address2, city, province, province_code, country, country_code, zip, phone, is_default, created_at, updated_at)
+  VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
     [
       customerId,
       data.firstName || null,
@@ -234,7 +245,7 @@ export async function updateCustomerAddress(id: string, customerId: string, data
   if (updates.length > 0) {
     updates.push('updated_at = NOW()');
     values.push(id);
-    await execute(`UPDATE customer_addresses SET ${updates.join(', ')} WHERE id = ?`, values);
+    await execute(`UPDATE customer_addresses SET ${updates.join(', ')} WHERE id = ? `, values);
   }
 }
 

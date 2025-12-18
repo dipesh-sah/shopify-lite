@@ -17,6 +17,7 @@ import { VariantsTable, Variant } from "@/components/admin/VariantsTable"
 import { ArrowLeft } from "lucide-react"
 
 import { previewNextNumberAction } from "@/actions/settings"
+import { RichTextEditor } from "@/components/admin/RichTextEditor"
 
 export default function NewProductPage() {
   const router = useRouter()
@@ -41,6 +42,7 @@ export default function NewProductPage() {
   // New Variant System State
   const [options, setOptions] = useState<any[]>([]) // [{ id, name, values: [] }]
   const [variants, setVariants] = useState<Variant[]>([])
+  const [description, setDescription] = useState("")
 
 
 
@@ -127,6 +129,7 @@ export default function NewProductPage() {
     // formData.append('tags', JSON.stringify(tags))
     formData.append('variants', JSON.stringify(variants))
     formData.append('collectionIds', JSON.stringify(selectedCollections))
+    formData.set('description', description)
 
     try {
       await createProductAction(formData)
@@ -202,14 +205,13 @@ export default function NewProductPage() {
               <label htmlFor="description" className="block text-sm font-medium mb-2">
                 Description *
               </label>
-              <textarea
-                id="description"
-                name="description"
-                required
-                rows={4}
-                className="w-full px-3 py-2 border rounded-md"
+              <RichTextEditor
+                value={description}
+                onChange={setDescription}
                 placeholder="Describe your product..."
+                className="min-h-[250px]"
               />
+              <input type="hidden" name="description" value={description} />
             </div>
 
             <div className="grid grid-cols-2 gap-4">

@@ -7,7 +7,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'
 
   // Fetch all active products
-  const products = await getProducts({ status: 'active', limit: 1000 })
+  const { products } = await getProducts({ status: 'active', limit: 1000 })
   const productEntries: MetadataRoute.Sitemap = products.map((product) => ({
     url: `${baseUrl}/products/${product.slug}`,
     lastModified: product.updatedAt,

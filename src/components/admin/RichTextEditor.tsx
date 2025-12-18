@@ -1,31 +1,34 @@
 
 "use client"
 
-import { useState, useRef, useEffect } from "react"
+import { useEditor, EditorContent, Editor } from '@tiptap/react'
+import StarterKit from '@tiptap/starter-kit'
+import Image from '@tiptap/extension-image'
+import Link from '@tiptap/extension-link'
+import Underline from '@tiptap/extension-underline'
+import TextAlign from '@tiptap/extension-text-align'
 import {
   Bold,
   Italic,
-  Underline,
+  Underline as UnderlineIcon,
   Link as LinkIcon,
   Image as ImageIcon,
-  Video,
-  Code as CodeIcon,
+  Quote,
+  List,
+  ListOrdered,
   AlignLeft,
   AlignCenter,
   AlignRight,
-  MoreHorizontal,
-  ChevronDown,
   Sparkles,
-  Type
+  Undo,
+  Redo,
+  Heading1,
+  Heading2,
+  Heading3,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
+import { useEffect } from 'react'
 
 interface RichTextEditorProps {
   value: string
@@ -34,208 +37,243 @@ interface RichTextEditorProps {
   className?: string
 }
 
-export function RichTextEditor({ value, onChange, placeholder, className }: RichTextEditorProps) {
-  const contentRef = useRef<HTMLDivElement>(null)
-  const [isFocused, setIsFocused] = useState(false)
-  const [showCode, setShowCode] = useState(false)
-  const [currentBlock, setCurrentBlock] = useState("Paragraph")
+const ToolbarButton = ({
+  onClick,
+  active = false,
+  disabled = false,
+  icon: Icon,
+  title
+}: {
+  onClick: () => void
+  active?: boolean
+  disabled?: boolean
+  icon: any
+  title?: string
+}) => (
+  <Button
+    type="button"
+    variant="ghost"
+    size="sm"
+    onClick={(e) => {
+      e.preventDefault()
+      onClick()
+    }}
+    disabled={disabled}
+    className={cn(
+      "h-8 w-8 p-0 text-muted-foreground hover:text-foreground hover:bg-muted/80",
+      active && "bg-muted text-foreground"
+    )}
+    title={title}
+  >
+    <Icon className="h-4 w-4" />
+    <span className="sr-only">{title}</span>
+  </Button>
+)
 
-  // Track active states
-  const [activeStates, setActiveStates] = useState({
-    bold: false,
-    italic: false,
-    underline: false,
-    justifyLeft: false,
-    justifyCenter: false,
-    justifyRight: false
+export function RichTextEditor({ value, onChange, placeholder, className }: RichTextEditorProps) {
+  const editor = useEditor({
+    extensions: [
+      StarterKit.configure({
+        heading: {
+          levels: [1, 2, 3],
+        },
+      }),
+      Image,
+      Link.configure({
+        openOnClick: false,
+        HTMLAttributes: {
+          class: 'text-primary underline cursor-pointer',
+        },
+      }),
+      Underline,
+      TextAlign.configure({
+        types: ['heading', 'paragraph'],
+      }),
+    ],
+    content: value, // Initial content only
+    immediatelyRender: false,
+    editorProps: {
+      attributes: {
+        class: cn(
+          "min-h-[200px] p-4 focus:outline-none prose prose-sm max-w-none dark:prose-invert",
+          "prose-headings:font-bold prose-h1:text-2xl prose-h2:text-xl prose-h3:text-lg",
+          "prose-a:text-primary prose-a:no-underline hover:prose-a:underline",
+          "prose-img:rounded-md prose-img:border"
+        ),
+      },
+    },
+    onUpdate: ({ editor }) => {
+      onChange(editor.getHTML())
+    },
   })
 
-  // Update active states on selection change
+  // Sync content if changed externally (e.g. from DB)
   useEffect(() => {
-    const handleSelectionChange = () => {
-      if (!contentRef.current || document.activeElement !== contentRef.current) return;
-
-      setActiveStates({
-        bold: document.queryCommandState('bold'),
-        italic: document.queryCommandState('italic'),
-        underline: document.queryCommandState('underline'),
-        justifyLeft: document.queryCommandState('justifyLeft'),
-        justifyCenter: document.queryCommandState('justifyCenter'),
-        justifyRight: document.queryCommandState('justifyRight'),
+    if (editor) {
+      console.log('RichTextEditor Sync Check:', {
+        propValue: value,
+        currentEditorContent: editor.getHTML(),
+        shouldUpdate: value !== editor.getHTML()
       })
-    }
-
-    document.addEventListener('selectionchange', handleSelectionChange)
-    return () => document.removeEventListener('selectionchange', handleSelectionChange)
-  }, [])
-
-  useEffect(() => {
-    if (contentRef.current) {
-      // Only update if content is significantly different to avoid cursor jumps
-      // Simple string compare is okay if external value changes (e.g. load from DB)
-      // Check active element to avoid overwriting while typing
-      if (document.activeElement !== contentRef.current && contentRef.current.innerHTML !== value) {
-        contentRef.current.innerHTML = value
+      if (value !== editor.getHTML()) {
+        editor.commands.setContent(value)
       }
     }
-  }, [value])
+  }, [value, editor])
 
-  const handleInput = () => {
-    if (contentRef.current) {
-      const html = contentRef.current.innerHTML
-      if (html !== value) {
-        onChange(html)
-      }
-    }
+  if (!editor) {
+    return null
   }
 
-  const execCommand = (command: string, arg: string | undefined = undefined) => {
-    document.execCommand(command, false, arg)
-    if (contentRef.current) {
-      contentRef.current.focus()
-      // Force update states
-      setActiveStates({
-        bold: document.queryCommandState('bold'),
-        italic: document.queryCommandState('italic'),
-        underline: document.queryCommandState('underline'),
-        justifyLeft: document.queryCommandState('justifyLeft'),
-        justifyCenter: document.queryCommandState('justifyCenter'),
-        justifyRight: document.queryCommandState('justifyRight'),
-      })
-    }
-  }
-
-  const ToolButton = ({ icon: Icon, command, arg, active = false, onClick }: any) => (
-    <Button
-      variant="ghost"
-      size="sm"
-      onMouseDown={(e) => {
-        e.preventDefault()
-        if (onClick) {
-          onClick()
-        } else {
-          execCommand(command, arg)
-        }
-      }}
-      className={cn("h-8 w-8 p-0 text-muted-foreground hover:text-foreground hover:bg-muted/80", active && "bg-muted text-foreground")}
-      type="button"
-    >
-      <Icon className="h-4 w-4" />
-    </Button>
-  )
-
-  const insertImage = () => {
-    const url = prompt("Enter Image URL:")
-    if (url) execCommand("insertImage", url)
-  }
-
-  const insertVideo = () => {
-    const url = prompt("Enter Video URL (YouTube embed or direct link):")
+  const addImage = () => {
+    const url = window.prompt('URL')
     if (url) {
-      // Simple iframe embed for demo purposes, robust editor needs sanitization
-      const embed = `< iframe width = "560" height = "315" src = "${url.replace('watch?v=', 'embed/')}" frameborder = "0" allowfullscreen ></iframe > `
-      execCommand("insertHTML", embed)
+      editor.chain().focus().setImage({ src: url }).run()
     }
+  }
+
+  const setLink = () => {
+    const previousUrl = editor.getAttributes('link').href
+    const url = window.prompt('URL', previousUrl)
+
+    // cancelled
+    if (url === null) {
+      return
+    }
+
+    // empty
+    if (url === '') {
+      editor.chain().focus().extendMarkRange('link').unsetLink().run()
+      return
+    }
+
+    // update
+    editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run()
   }
 
   return (
-    <div className={cn("border rounded-md overflow-hidden bg-background shadow-sm", isFocused && "ring-2 ring-ring ring-offset-2", className)}>
+    <div className={cn("border rounded-md overflow-hidden bg-background shadow-sm", className)}>
       {/* Toolbar */}
-      <div className="flex items-center gap-1 p-2 border-b bg-muted/20 flex-wrap">
-        {/* AI / Sparkles */}
-        <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-muted-foreground"><Sparkles className="h-4 w-4" /></Button>
+      <div className="flex items-center gap-1 p-2 border-b bg-muted/20 flex-wrap" role="toolbar" aria-label="Text formatting">
 
-        <div className="w-px h-4 bg-border mx-1" />
+        {/* Headings */}
+        <ToolbarButton
+          onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
+          active={editor.isActive('heading', { level: 1 })}
+          icon={Heading1}
+          title="Heading 1"
+        />
+        <ToolbarButton
+          onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
+          active={editor.isActive('heading', { level: 2 })}
+          icon={Heading2}
+          title="Heading 2"
+        />
+        <ToolbarButton
+          onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
+          active={editor.isActive('heading', { level: 3 })}
+          icon={Heading3}
+          title="Heading 3"
+        />
 
-        {/* Paragraph Dropdown */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="sm" className="h-8 gap-1 px-2 text-muted-foreground font-normal">
-              {currentBlock} <ChevronDown className="h-3 w-3" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent>
-            <DropdownMenuItem onMouseDown={(e) => { e.preventDefault(); execCommand("formatBlock", "<P>"); setCurrentBlock("Paragraph") }}>Paragraph</DropdownMenuItem>
-            <DropdownMenuItem onMouseDown={(e) => { e.preventDefault(); execCommand("formatBlock", "<H1>"); setCurrentBlock("Heading 1") }}>Heading 1</DropdownMenuItem>
-            <DropdownMenuItem onMouseDown={(e) => { e.preventDefault(); execCommand("formatBlock", "<H2>"); setCurrentBlock("Heading 2") }}>Heading 2</DropdownMenuItem>
-            <DropdownMenuItem onMouseDown={(e) => { e.preventDefault(); execCommand("formatBlock", "<H3>"); setCurrentBlock("Heading 3") }}>Heading 3</DropdownMenuItem>
-            <DropdownMenuItem onMouseDown={(e) => { e.preventDefault(); execCommand("formatBlock", "<H4>"); setCurrentBlock("Heading 4") }}>Heading 4</DropdownMenuItem>
-            <DropdownMenuItem onMouseDown={(e) => { e.preventDefault(); execCommand("formatBlock", "<BLOCKQUOTE>"); setCurrentBlock("Blockquote") }}>Blockquote</DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <div className="w-px h-4 bg-border mx-1" aria-hidden="true" />
 
-        <div className="w-px h-4 bg-border mx-1" />
+        {/* Basic Formatting */}
+        <ToolbarButton
+          onClick={() => editor.chain().focus().toggleBold().run()}
+          active={editor.isActive('bold')}
+          icon={Bold}
+          title="Bold (Ctrl+B)"
+        />
+        <ToolbarButton
+          onClick={() => editor.chain().focus().toggleItalic().run()}
+          active={editor.isActive('italic')}
+          icon={Italic}
+          title="Italic (Ctrl+I)"
+        />
+        <ToolbarButton
+          onClick={() => editor.chain().focus().toggleUnderline().run()}
+          active={editor.isActive('underline')}
+          icon={UnderlineIcon}
+          title="Underline (Ctrl+U)"
+        />
 
-        {/* Formatting */}
-        <ToolButton icon={Bold} command="bold" active={activeStates.bold} />
-        <ToolButton icon={Italic} command="italic" active={activeStates.italic} />
-        <ToolButton icon={Underline} command="underline" active={activeStates.underline} />
-        <ToolButton icon={Type} onClick={() => {
-          const color = prompt("Enter color (hex or name):", "#000000");
-          if (color) execCommand("foreColor", color);
-        }} />
+        <div className="w-px h-4 bg-border mx-1" aria-hidden="true" />
 
-        <div className="w-px h-4 bg-border mx-1" />
+        {/* Alignment */}
+        <ToolbarButton
+          onClick={() => editor.chain().focus().setTextAlign('left').run()}
+          active={editor.isActive({ textAlign: 'left' })}
+          icon={AlignLeft}
+          title="Align Left"
+        />
+        <ToolbarButton
+          onClick={() => editor.chain().focus().setTextAlign('center').run()}
+          active={editor.isActive({ textAlign: 'center' })}
+          icon={AlignCenter}
+          title="Align Center"
+        />
+        <ToolbarButton
+          onClick={() => editor.chain().focus().setTextAlign('right').run()}
+          active={editor.isActive({ textAlign: 'right' })}
+          icon={AlignRight}
+          title="Align Right"
+        />
 
-        {/* Alignment Dropdown */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-muted-foreground">
-              {activeStates.justifyCenter ? <AlignCenter className="h-4 w-4" /> :
-                activeStates.justifyRight ? <AlignRight className="h-4 w-4" /> :
-                  <AlignLeft className="h-4 w-4" />}
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent>
-            <DropdownMenuItem onMouseDown={(e) => { e.preventDefault(); execCommand("justifyLeft") }}><AlignLeft className="h-4 w-4 mr-2" /> Left</DropdownMenuItem>
-            <DropdownMenuItem onMouseDown={(e) => { e.preventDefault(); execCommand("justifyCenter") }}><AlignCenter className="h-4 w-4 mr-2" /> Center</DropdownMenuItem>
-            <DropdownMenuItem onMouseDown={(e) => { e.preventDefault(); execCommand("justifyRight") }}><AlignRight className="h-4 w-4 mr-2" /> Right</DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <div className="w-px h-4 bg-border mx-1" aria-hidden="true" />
 
-        <div className="w-px h-4 bg-border mx-1" />
+        {/* Lists & Quotes */}
+        <ToolbarButton
+          onClick={() => editor.chain().focus().toggleBulletList().run()}
+          active={editor.isActive('bulletList')}
+          icon={List}
+          title="Bullet List"
+        />
+        <ToolbarButton
+          onClick={() => editor.chain().focus().toggleOrderedList().run()}
+          active={editor.isActive('orderedList')}
+          icon={ListOrdered}
+          title="Ordered List"
+        />
+        <ToolbarButton
+          onClick={() => editor.chain().focus().toggleBlockquote().run()}
+          active={editor.isActive('blockquote')}
+          icon={Quote}
+          title="Blockquote"
+        />
 
-        {/* Media & Links */}
-        <ToolButton icon={LinkIcon} onClick={() => {
-          const url = prompt('Enter URL:')
-          if (url) execCommand('createLink', url)
-        }} />
-        <ToolButton icon={ImageIcon} onClick={insertImage} />
-        <ToolButton icon={Video} onClick={insertVideo} />
+        <div className="w-px h-4 bg-border mx-1" aria-hidden="true" />
 
-        <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-muted-foreground ml-auto"><MoreHorizontal className="h-4 w-4" /></Button>
+        {/* Media */}
+        <ToolbarButton
+          onClick={setLink}
+          active={editor.isActive('link')}
+          icon={LinkIcon}
+          title="Link"
+        />
+        <ToolbarButton
+          onClick={addImage}
+          icon={ImageIcon}
+          title="Insert Image"
+        />
 
-        {/* Code View Toggle */}
-        <Button
-          variant="ghost"
-          size="sm"
-          className={cn("h-8 w-8 p-0 text-muted-foreground", showCode && "bg-muted text-foreground")}
-          onClick={() => setShowCode(!showCode)}
-        >
-          <CodeIcon className="h-4 w-4" />
-        </Button>
+        <div className="ml-auto flex items-center gap-1">
+          <ToolbarButton
+            onClick={() => editor.chain().focus().undo().run()}
+            disabled={!editor.can().undo()}
+            icon={Undo}
+            title="Undo"
+          />
+          <ToolbarButton
+            onClick={() => editor.chain().focus().redo().run()}
+            disabled={!editor.can().redo()}
+            icon={Redo}
+            title="Redo"
+          />
+        </div>
       </div>
 
-      {/* Editor Content */}
-      <div className="relative min-h-[200px]">
-        {showCode ? (
-          <textarea
-            className="w-full h-full min-h-[200px] p-4 font-mono text-sm resize-none focus:outline-none bg-muted/10"
-            value={value}
-            onChange={(e) => onChange(e.target.value)}
-          />
-        ) : (
-          <div
-            ref={contentRef}
-            className="min-h-[200px] p-4 focus:outline-none prose prose-sm max-w-none dark:prose-invert"
-            contentEditable
-            suppressContentEditableWarning
-            onInput={handleInput}
-            onFocus={() => setIsFocused(true)}
-            onBlur={() => setIsFocused(false)}
-          />
-        )}
-      </div>
+      <EditorContent editor={editor} />
     </div>
   )
 }

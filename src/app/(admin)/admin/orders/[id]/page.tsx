@@ -4,7 +4,9 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import { getOrderAction, updateOrderStatusAction, updatePaymentStatusAction } from '@/actions/orders'
-import { ArrowLeft, Package, CheckCircle, Clock, AlertCircle, Mail, Calendar, DollarSign, Pencil } from 'lucide-react'
+import { ArrowLeft, Package, CheckCircle, Clock, AlertCircle, Mail, Calendar, DollarSign, Pencil, Download } from 'lucide-react'
+import { useStoreSettings } from '@/components/providers/StoreSettingsProvider'
+import { generateInvoice } from '@/components/admin/orders/InvoiceGenerator'
 
 interface Order {
   id: string
@@ -56,6 +58,7 @@ interface Order {
 
 export default function AdminOrderDetailsPage() {
   const params = useParams()
+  const { formatPrice } = useStoreSettings()
   const [order, setOrder] = useState<Order | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isUpdating, setIsUpdating] = useState(false)
@@ -240,6 +243,13 @@ export default function AdminOrderDetailsPage() {
         </div>
         <div className="flex items-center gap-2">
           <button
+            onClick={() => generateInvoice(order)}
+            className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+          >
+            <Download className="w-4 h-4" />
+            Invoice
+          </button>
+          <button
             onClick={() => handleStatusChange('PENDING')}
             disabled={isUpdating}
             className="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
@@ -310,10 +320,10 @@ export default function AdminOrderDetailsPage() {
                       <div>
                         <p className="text-sm font-medium text-blue-600 hover:underline cursor-pointer">{item.name || 'Product'}</p>
                         {/* <p className="text-xs text-gray-500">SKU: {item.productId.slice(0,8)}</p> */}
-                        <p className="text-sm mt-1">${Number(item.price).toFixed(2)} × {item.quantity}</p>
+                        <p className="text-sm mt-1">{formatPrice(item.price)} × {item.quantity}</p>
                       </div>
                     </div>
-                    <p className="text-sm font-medium">${(Number(item.price) * item.quantity).toFixed(2)}</p>
+                    <p className="text-sm font-medium">{formatPrice(Number(item.price) * item.quantity)}</p>
                   </div>
                 ))}
               </div>
@@ -352,17 +362,17 @@ export default function AdminOrderDetailsPage() {
               <div className="flex justify-between text-sm">
                 <span className="text-gray-600">Subtotal</span>
                 <span>{order.items?.length || 0} items</span>
-                <span className="font-medium">${(Number(order.total) * 0.9).toFixed(2)}</span>
+                <span className="font-medium">{formatPrice(Number(order.total) * 0.9)}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-gray-600">Shipping</span>
                 <span className="text-gray-600">Standard (0.71 lb)</span>
-                <span className="font-medium">$0.00</span>
+                <span className="font-medium">{formatPrice(0)}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-gray-600">Tax</span>
                 <div className="text-right">
-                  <span className="font-medium block">${(Number(order.taxTotal || 0)).toFixed(2)}</span>
+                  <span className="font-medium block">{formatPrice(order.taxTotal || 0)}</span>
                   {/* Breakdown */}
                   {(() => {
                     let breakdown = order.taxBreakdown;
@@ -374,7 +384,7 @@ export default function AdminOrderDetailsPage() {
                         <div className="text-xs text-gray-500 mt-1">
                           {breakdown.map((line: any, i: number) => (
                             <div key={i}>
-                              {line.title} ({line.rate}%): ${Number(line.amount).toFixed(2)}
+                              {line.title} ({line.rate}%): {formatPrice(line.amount)}
                             </div>
                           ))}
                         </div>
@@ -386,12 +396,12 @@ export default function AdminOrderDetailsPage() {
               </div>
               <div className="flex justify-between text-base font-bold pt-3 border-t">
                 <span>Total</span>
-                <span>${Number(order.total).toFixed(2)}</span>
+                <span>{formatPrice(order.total)}</span>
               </div>
 
               <div className="flex justify-between text-sm pt-3 border-t">
                 <span className="text-gray-600">Paid by customer</span>
-                <span className="font-medium">${order.isPaid ? Number(order.total).toFixed(2) : '0.00'}</span>
+                <span className="font-medium">{order.isPaid ? formatPrice(order.total) : formatPrice(0)}</span>
               </div>
             </div>
 

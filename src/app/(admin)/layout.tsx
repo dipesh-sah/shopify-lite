@@ -3,7 +3,6 @@
 import { useState } from "react"
 import { AdminSidebar } from "@/components/admin/Sidebar"
 import { AdminHeader } from "@/components/admin/Header"
-import { ChatWidget } from "@/components/admin/chat/ChatWidget"
 import ToastContainer from '@/components/ui/Toast'
 import ConfirmContainer from '@/components/ui/Confirm'
 import { usePathname } from 'next/navigation'
@@ -49,7 +48,6 @@ export default function AdminLayout({
           <div className="ma-w-7xl mx-auto w-full">
             {children}
           </div>
-          <ChatWidget />
           <ToastContainer />
           <ConfirmContainer />
         </main>

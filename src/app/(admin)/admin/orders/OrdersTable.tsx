@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Mail, Calendar, Trash2, Edit, Search, Filter, CheckCircle, Plus } from 'lucide-react';
+import { Mail, Calendar, Trash2, Edit, Search, Filter, CheckCircle, Plus, MoreHorizontal } from 'lucide-react';
 import { deleteOrderAction, updateOrderStatusAction, updatePaymentStatusAction } from '@/actions/orders';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from "@/components/ui/button"
@@ -17,6 +17,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { useStoreSettings } from "@/components/providers/StoreSettingsProvider"
 
 interface OrdersTableProps {
   orders: any[];
@@ -36,6 +37,7 @@ export default function OrdersTable({
   const router = useRouter();
   const searchParams = useSearchParams();
   const [searchTerm, setSearchTerm] = useState(searchParams.get('search') || "");
+  const { formatPrice } = useStoreSettings()
 
   // Determine active tab based on params
   const statusParam = searchParams.get('status');
@@ -115,6 +117,20 @@ export default function OrdersTable({
     }
   };
 
+  async function handleBulkDelete() {
+    if (!confirm(`Are you sure you want to delete ${selectedOrders.length} orders?`)) return;
+
+    try {
+      await Promise.all(selectedOrders.map(id => deleteOrderAction(id)));
+      setOrders(orders.filter(order => !selectedOrders.includes(order.id)));
+      setSelectedOrders([]);
+      router.refresh();
+    } catch (error) {
+      console.error('Error deleting orders:', error);
+      alert('Failed to delete some orders');
+    }
+  }
+
   async function handleDelete(id: string) {
     if (!confirm('Are you sure you want to delete this order? This action cannot be undone.')) return;
 
@@ -156,6 +172,47 @@ export default function OrdersTable({
 
   const isAllSelected = orders.length > 0 && selectedOrders.length === orders.length;
 
+  async function handleExport() {
+    try {
+      if (!confirm("Export filtered orders to CSV?")) return;
+
+      const { orders: allOrders } = await import('@/actions/orders').then(mod => mod.getOrdersAction({
+        search: searchTerm,
+        status: statusParam || undefined,
+        paymentStatus: paymentStatusParam || undefined,
+        limit: 1000
+      }));
+
+      const headers = ['Order ID', 'Date', 'Customer Name', 'Customer Email', 'Total', 'Payment Status', 'Fulfillment Status', 'Items Count'];
+      const csvContent = [
+        headers.join(','),
+        ...allOrders.map((order: any) => [
+          order.id,
+          new Date(order.createdAt).toISOString(),
+          `"${(order.customerFirstName || '')} ${(order.customerLastName || '')}"`,
+          order.customerEmail,
+          order.total,
+          order.paymentStatus,
+          order.status,
+          order.items?.length || 0
+        ].join(','))
+      ].join('\n');
+
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', `orders_export_${new Date().toISOString().split('T')[0]}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (error) {
+      console.error('Export failed:', error);
+      alert('Failed to export orders');
+    }
+  }
+
   return (
     <div className="space-y-4">
       <Tabs value={currentTab} className="w-full" onValueChange={handleTabChange}>
@@ -168,27 +225,127 @@ export default function OrdersTable({
           </TabsList>
         </div>
 
-        <div className="flex items-center gap-2 py-4">
-          <div className="relative flex-1 max-w-sm">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search orders..."
-              className="pl-8 bg-background"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-          <div className="flex items-center gap-2 ml-auto">
-            <Link href="/admin/orders/new">
-              <Button size="sm">
-                <Plus className="mr-2 h-4 w-4" /> Create Order
+        {selectedOrders.length > 0 ? (
+          <div className="flex items-center gap-2 py-4 bg-muted/50 px-4 rounded-md">
+            <span className="text-sm font-medium">{selectedOrders.length} selected</span>
+            <div className="ml-auto flex items-center gap-2">
+              <Button variant="destructive" size="sm" onClick={handleBulkDelete}>
+                <Trash2 className="mr-2 h-4 w-4" /> Delete
               </Button>
-            </Link>
-            <Button variant="outline" size="sm">
-              <Filter className="mr-2 h-4 w-4" /> Filter
-            </Button>
+              <Button variant="outline" size="sm" onClick={() => setSelectedOrders([])}>
+                Cancel
+              </Button>
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="flex items-center gap-2 py-4">
+            <div className="relative flex-1 max-w-sm">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search orders..."
+                className="pl-8 bg-background"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+            <div className="flex items-center gap-2 ml-auto">
+              {/* <Button variant="outline" size="sm" onClick={handleExport}>
+                <Download className="mr-2 h-4 w-4" /> Export CSV
+              </Button> */}
+              <button
+                onClick={handleExport}
+                className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9 px-3"
+              >
+                Export CSV
+              </button>
+              <Link href="/admin/orders/new">
+                <Button size="sm">
+                  <Plus className="mr-2 h-4 w-4" /> Create Order
+                </Button>
+              </Link>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="gap-2">
+                    <Filter className="h-4 w-4" />
+                    Filter
+                    {(statusParam || paymentStatusParam) && (
+                      <Badge variant="secondary" className="ml-1 px-1 rounded-sm h-5 text-[10px] min-w-[1.25rem]">
+                        {(statusParam ? 1 : 0) + (paymentStatusParam ? 1 : 0)}
+                      </Badge>
+                    )}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuLabel>Filter by Status</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <div className="p-2 space-y-2">
+                    <div className="space-y-1">
+                      <p className="text-xs font-medium text-muted-foreground mb-1">Fulfillment Status</p>
+                      {['pending', 'processing', 'shipped', 'delivered', 'cancelled'].map((s) => (
+                        <div key={s} className="flex items-center space-x-2">
+                          <input
+                            type="checkbox"
+                            id={`status-${s}`}
+                            checked={statusParam === s}
+                            onChange={(e) => {
+                              const params = new URLSearchParams(searchParams.toString());
+                              if (e.target.checked) params.set('status', s);
+                              else params.delete('status');
+                              params.set('page', '1');
+                              router.push(`?${params.toString()}`);
+                            }}
+                            className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                          />
+                          <label htmlFor={`status-${s}`} className="text-sm capitalize">{s}</label>
+                        </div>
+                      ))}
+                    </div>
+
+                    <DropdownMenuSeparator />
+
+                    <div className="space-y-1">
+                      <p className="text-xs font-medium text-muted-foreground mb-1">Payment Status</p>
+                      {['paid', 'pending', 'failed', 'refunded'].map((s) => (
+                        <div key={s} className="flex items-center space-x-2">
+                          <input
+                            type="checkbox"
+                            id={`payment-${s}`}
+                            checked={paymentStatusParam === s}
+                            onChange={(e) => {
+                              const params = new URLSearchParams(searchParams.toString());
+                              if (e.target.checked) params.set('paymentStatus', s);
+                              else params.delete('paymentStatus');
+                              params.set('page', '1');
+                              router.push(`?${params.toString()}`);
+                            }}
+                            className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                          />
+                          <label htmlFor={`payment-${s}`} className="text-sm capitalize">{s}</label>
+                        </div>
+                      ))}
+                    </div>
+
+                    {(statusParam || paymentStatusParam) && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="w-full mt-2 text-xs"
+                        onClick={() => {
+                          const params = new URLSearchParams(searchParams.toString());
+                          params.delete('status');
+                          params.delete('paymentStatus');
+                          router.push(`?${params.toString()}`);
+                        }}
+                      >
+                        Clear Filters
+                      </Button>
+                    )}
+                  </div>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </div>
+        )}
 
         <div className="rounded-md border bg-card">
           <div className="relative w-full overflow-auto">
@@ -264,8 +421,9 @@ export default function OrdersTable({
                             <span className="text-xs text-muted-foreground">{order.customerEmail}</span>
                           </div>
                         </td>
+
                         <td className="px-4 py-4 text-gray-900">
-                          ${Number(order.total).toFixed(2)}
+                          {formatPrice(order.total ?? 0)}
                         </td>
                         <td className="px-4 py-4">
                           <Badge variant="outline" className={`capitalize font-normal border-0 ${paymentBadgeClass}`}>
@@ -281,9 +439,24 @@ export default function OrdersTable({
                           {order.items?.length || 0} items
                         </td>
                         <td className="px-4 py-4 text-right">
-                          <Link href={`/admin/orders/${order.id}`} className="text-blue-600 hover:underline text-sm font-medium">
-                            Edit
-                          </Link>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" className="h-8 w-8 p-0">
+                                <span className="sr-only">Open menu</span>
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                              <DropdownMenuItem asChild>
+                                <Link href={`/admin/orders/${order.id}`}>Edit Order</Link>
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem className="text-red-600 focus:text-red-600" onClick={() => handleDelete(order.id)}>
+                                <Trash2 className="mr-2 h-4 w-4" /> Delete
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </td>
                       </tr>
                     )

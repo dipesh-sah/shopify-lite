@@ -1,5 +1,6 @@
 "use server"
 
+import { revalidateTag, revalidatePath } from "next/cache"
 import * as db from "@/lib/products"
 
 export async function getProductsAction(options: {
@@ -41,25 +42,33 @@ export async function getProductsAction(options: {
 
 import { cacheable } from "@/lib/cache"
 
-const getCachedProduct = cacheable(
-  async (id: string) => db.getProduct(id),
-  ['get-product'],
-  { revalidate: 60, tags: ['products'] }
-)
+// const getCachedProduct = cacheable(
+//   async (id: string) => db.getProduct(id),
+//   ['get-product'],
+//   { revalidate: 60, tags: ['products'] }
+// )
 
 export async function getProductAction(id: string) {
   try {
-    return await getCachedProduct(id)
+    // return await getCachedProduct(id)
+    const product = await db.getProduct(id)
+    return product
   } catch (error) {
     console.error("Error getting product:", error)
     return null
   }
 }
 
+
+
 export async function createProductAction(formData: FormData) {
   try {
     const data = parseProductFormData(formData)
+    console.log('[createProductAction] description:', data.description)
     const id = await db.createProduct(data)
+    // @ts-ignore
+    revalidateTag('products')
+    revalidatePath('/admin/products')
     return { success: true, id }
   } catch (error) {
     console.error("Error creating product:", error)
@@ -82,7 +91,13 @@ export async function updateProductAction(idOrFormData: string | FormData, formD
 
     if (!id) throw new Error("Product ID is required")
 
+    console.log('[updateProductAction] Updating product:', id)
+    console.log('[updateProductAction] New description:', data.description)
+
     await db.updateProduct(id, data)
+    // @ts-ignore
+    revalidateTag('products')
+    revalidatePath('/admin/products')
     return { success: true }
   } catch (error) {
     console.error("Error updating product:", error)
@@ -93,6 +108,9 @@ export async function updateProductAction(idOrFormData: string | FormData, formD
 export async function deleteProductAction(id: string) {
   try {
     await db.deleteProduct(id)
+    // @ts-ignore
+    revalidateTag('products')
+    revalidatePath('/admin/products')
     return { success: true }
   } catch (error) {
     console.error("Error deleting product:", error)

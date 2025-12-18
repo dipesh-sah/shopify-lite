@@ -25,12 +25,14 @@ export function InventoryAlerts({ products }: InventoryAlertsProps) {
         ) : (
           <div className="divide-y">
             {products.map((product) => (
-              <div key={product.id} className="flex items-center justify-between p-4 hover:bg-muted/50">
-                <span className="font-medium text-sm line-clamp-1 flex-1 pr-4">{product.title}</span>
-                <span className="text-xs font-bold text-amber-600 bg-amber-50 px-2.5 py-1 rounded-full whitespace-nowrap">
-                  {product.stock} left
-                </span>
-              </div>
+              <Link key={product.id} href={`/admin/products/${product.id}`} className="block hover:bg-muted/50 transition-colors">
+                <div className="flex items-center justify-between p-4">
+                  <span className="font-medium text-sm line-clamp-1 flex-1 pr-4">{product.title}</span>
+                  <span className="text-xs font-bold text-amber-600 bg-amber-50 px-2.5 py-1 rounded-full whitespace-nowrap">
+                    {product.stock} left
+                  </span>
+                </div>
+              </Link>
             ))}
           </div>
         )}

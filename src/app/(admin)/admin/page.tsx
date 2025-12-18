@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react'
 import { getDashboardStatsAction } from '@/actions/dashboard'
-import { DollarSign, ShoppingBag, Package, Clock, Users } from 'lucide-react'
+import { DollarSign, ShoppingBag, Package, Clock } from 'lucide-react'
 import Link from 'next/link'
 import { InventoryAlerts } from '@/components/admin/dashboard/InventoryAlerts'
 import { TopCustomers } from '@/components/admin/dashboard/TopCustomers'
@@ -10,6 +10,8 @@ import { TopCustomers } from '@/components/admin/dashboard/TopCustomers'
 import { getAnalyticsUsageAction } from '@/actions/analytics'
 import { Download } from 'lucide-react'
 import { SalesAreaChart } from '@/components/admin/dashboard/SalesAreaChart'
+import { exportDashboardAction } from '@/actions/dashboard' // Updated import
+import { showToast } from '@/components/ui/Toast'
 
 export default function AdminDashboard() {
   const [stats, setStats] = useState({
@@ -50,6 +52,34 @@ export default function AdminDashboard() {
     }
   }, [analyticsData.sales])
 
+  async function handleExport() {
+    try {
+      showToast('Generating report...', 'loading')
+      const result = await exportDashboardAction() // Updated action call
+
+      if (result.error) {
+        showToast(result.error, 'error')
+        return
+      }
+
+      if (result.csv) {
+        const blob = new Blob([result.csv], { type: 'text/csv' })
+        const url = window.URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = result.filename || 'report.csv'
+        document.body.appendChild(a)
+        a.click()
+        window.URL.revokeObjectURL(url)
+        document.body.removeChild(a)
+        showToast('Report downloaded successfully', 'success')
+      }
+    } catch (error) {
+      console.error('Export failed:', error)
+      showToast('Failed to export report', 'error')
+    }
+  }
+
   if (loading) {
     return <div className="p-8 text-center">Loading dashboard...</div>
   }
@@ -61,15 +91,17 @@ export default function AdminDashboard() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Dashboard</h1>
-        <a href="/api/admin/reports/export" target="_blank" className="flex items-center gap-2 bg-black text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-gray-800 transition-colors">
+        <button
+          onClick={handleExport}
+          className="flex items-center gap-2 bg-black text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-gray-800 transition-colors"
+        >
           <Download className="w-4 h-4" />
           Export Report
-        </a>
+        </button>
       </div>
 
       {/* Stats Grid */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {/* ... existing stats cards ... */}
         <div className="rounded-xl border bg-card p-6 shadow-sm">
           <div className="flex items-center justify-between space-y-0 pb-2">
             <h3 className="tracking-tight text-sm font-medium text-muted-foreground">Total Revenue</h3>
@@ -115,44 +147,14 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-7">
+      {/* Sales Chart */}
+      {/* Middle Section: Sales Chart & Recent Orders */}
+      <div className="grid gap-6 lg:grid-cols-3">
         {/* Sales Chart */}
-        <div className="col-span-4 rounded-xl border bg-card shadow-sm p-6">
+        <div className="rounded-xl border bg-card shadow-sm p-6 lg:col-span-2">
           <h3 className="font-semibold mb-6">Sales Over Time</h3>
           <SalesAreaChart data={analyticsData.sales} height={320} />
         </div>
-
-        {/* Top Products */}
-        <div className="col-span-3 rounded-xl border bg-card shadow-sm p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold">Top Products</h3>
-            <Link href="/admin/products" className="text-xs text-muted-foreground hover:text-primary">View All</Link>
-          </div>
-          <div className="space-y-4">
-            {analyticsData.topProducts.map((prod: any, i: number) => (
-              <div key={prod.id} className="flex items-center justify-between border-b pb-2 last:border-0 last:pb-0">
-                <div className="flex items-center gap-3">
-                  <div className="h-8 w-8 flex items-center justify-center rounded-full bg-gray-100 font-bold text-xs">
-                    {i + 1}
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium line-clamp-1">{prod.title}</p>
-                    <p className="text-xs text-muted-foreground">{prod.sold} sold</p>
-                  </div>
-                </div>
-                <div className="text-sm font-bold">
-                  ${prod.revenue.toFixed(0)}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Lower Section */}
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        <TopCustomers customers={stats.topCustomers || []} />
-        <InventoryAlerts products={stats.inventoryAlerts || []} />
 
         {/* Recent Orders */}
         <div className="rounded-xl border bg-card shadow-sm h-full flex flex-col">
@@ -169,22 +171,30 @@ export default function AdminDashboard() {
             ) : (
               <div className="divide-y">
                 {stats.recentOrders.map((order) => (
-                  <div key={order.id} className="flex items-center justify-between p-4 hover:bg-muted/50">
-                    <div className="flex flex-col">
-                      <span className="font-medium text-sm">{order.customerName}</span>
-                      <span className="text-xs text-muted-foreground">{order.customerEmail}</span>
+                  <Link href={`/admin/orders/${order.id}`} key={order.id} className="block hover:bg-muted/50 transition-colors">
+                    <div className="flex items-center justify-between p-4">
+                      <div className="flex flex-col">
+                        <span className="font-medium text-sm">{order.customerName}</span>
+                        <span className="text-xs text-muted-foreground">{order.customerEmail}</span>
+                      </div>
+                      <div className="text-right">
+                        <div className="font-medium text-sm">${order.total.toFixed(2)}</div>
+                        <span className={`text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wide font-bold ${order.status === 'paid' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                          }`}>{order.status}</span>
+                      </div>
                     </div>
-                    <div className="text-right">
-                      <div className="font-medium text-sm">${order.total.toFixed(2)}</div>
-                      <span className={`text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wide font-bold ${order.status === 'paid' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-                        }`}>{order.status}</span>
-                    </div>
-                  </div>
+                  </Link>
                 ))}
               </div>
             )}
           </div>
         </div>
+      </div>
+
+      {/* Lower Section: Top Customers & Inventory Alerts */}
+      <div className="grid gap-6 md:grid-cols-2">
+        <TopCustomers customers={stats.topCustomers || []} />
+        <InventoryAlerts products={stats.inventoryAlerts || []} />
       </div>
     </div>
   )

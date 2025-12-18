@@ -1,6 +1,8 @@
 import { notFound } from "next/navigation"
 import { getCustomer } from "@/lib/customers"
 import { CustomerForm } from "@/components/admin/customers/CustomerForm"
+import { getCustomerOrdersAction } from "@/actions/orders"
+import { getCustomerAction } from "@/actions/customers"
 
 interface EditCustomerPageProps {
   params: Promise<{
@@ -8,9 +10,10 @@ interface EditCustomerPageProps {
   }>
 }
 
-export default async function EditCustomerPage({ params }: EditCustomerPageProps) {
+// Next.js 15+ compatible
+export default async function CustomerPage({ params }: { params: Promise<{ id: string }> }) { // Changed function name and params type
   const { id } = await params
-  const customer = await getCustomer(id)
+  const customer = await getCustomerAction(id) // Changed to getCustomerAction
 
   if (!customer) {
     notFound()
@@ -19,6 +22,9 @@ export default async function EditCustomerPage({ params }: EditCustomerPageProps
   // Map customer data to form values
   const defaultAddress = customer.defaultAddress || (customer.addresses && customer.addresses[0])
 
+  // Fetch customer orders
+  const orders = await getCustomerOrdersAction(undefined, id); // Changed parameters for getCustomerOrdersAction
+
   const initialData = {
     id: customer.id,
     firstName: customer.firstName || "",
@@ -26,6 +32,7 @@ export default async function EditCustomerPage({ params }: EditCustomerPageProps
     email: customer.email || "",
     phone: customer.phone || "",
     notes: customer.notes || "",
+    tags: customer.tags || [],
     acceptsMarketing: customer.acceptsMarketing,
     address: defaultAddress ? {
       firstName: defaultAddress.firstName || customer.firstName || "",
@@ -39,5 +46,5 @@ export default async function EditCustomerPage({ params }: EditCustomerPageProps
     } : undefined
   }
 
-  return <CustomerForm initialData={initialData} isEditing />
+  return <CustomerForm initialData={initialData} isEditing orders={orders} />
 }

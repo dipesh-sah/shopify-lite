@@ -16,7 +16,7 @@ export default async function CollectionPage({ params }: { params: Promise<{ slu
 
   // Load products (MySQL)
   // Assuming getProducts supports filtering by category_id
-  const products = await getProducts({ category: collection.id });
+  const { products } = await getProducts({ category: collection.id });
 
   return (
     <div className="container mx-auto px-4 py-12">

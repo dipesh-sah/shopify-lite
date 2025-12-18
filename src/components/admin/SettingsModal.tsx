@@ -19,6 +19,8 @@ import { Loader2 } from "lucide-react"
 import dynamic from 'next/dynamic'
 import { UsersManager } from './UsersManager'
 import { TaxManager } from './TaxManager'
+import { RuleManager } from './rules/RuleManager'
+import { RuleSelector } from './rules/RuleSelector'
 const TwoFactorSettings = dynamic(() => import('./TwoFactorSettings').then(mod => mod.TwoFactorSettings), {
   ssr: false,
   loading: () => <Loader2 className="h-6 w-6 animate-spin" />
@@ -124,6 +126,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
               <TabsTrigger value="security" className="w-full justify-start px-3 py-2 text-sm font-medium">Security</TabsTrigger>
               <TabsTrigger value="content" className="w-full justify-start px-3 py-2 text-sm font-medium">Content</TabsTrigger>
               <TabsTrigger value="users" className="w-full justify-start px-3 py-2 text-sm font-medium">Users</TabsTrigger>
+              <TabsTrigger value="rules" className="w-full justify-start px-3 py-2 text-sm font-medium">Rules</TabsTrigger>
               <TabsTrigger value="number-ranges" className="w-full justify-start px-3 py-2 text-sm font-medium">Number Ranges</TabsTrigger>
             </TabsList>
           </div>
@@ -208,6 +211,16 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                       {settings.stripeEnabled && (
                         <div className="pl-4 border-l-2 space-y-4 pt-2">
                           <div className="space-y-2">
+                            <Label>Availability Rule</Label>
+                            <RuleSelector
+                              value={settings.stripeAvailabilityRuleId}
+                              onChange={val => handleChange('stripeAvailabilityRuleId', val)}
+                              moduleType="payment"
+                              placeholder="Select condition for Stripe..."
+                            />
+                            <p className="text-[10px] text-muted-foreground">Rule must be TRUE for Stripe to appear.</p>
+                          </div>
+                          <div className="space-y-2">
                             <Label>Publishable Key</Label>
                             <Input
                               value={settings.stripePublishableKey || ''}
@@ -221,6 +234,20 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                               value={settings.stripeSecretKey || ''}
                               onChange={e => handleChange('stripeSecretKey', e.target.value)}
                             />
+                          </div>
+                        </div>
+                      )}
+                      {settings.cashOnDeliveryEnabled && (
+                        <div className="pl-4 border-l-2 space-y-4 pt-2">
+                          <div className="space-y-2">
+                            <Label>Availability Rule (Negative Logic)</Label>
+                            <RuleSelector
+                              value={settings.codAvailabilityRuleId}
+                              onChange={val => handleChange('codAvailabilityRuleId', val)}
+                              moduleType="payment"
+                              placeholder="Select exclusion rule..."
+                            />
+                            <p className="text-[10px] text-muted-foreground">If Rule is TRUE, COD will be HIDDEN.</p>
                           </div>
                         </div>
                       )}
@@ -248,6 +275,30 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                           value={settings.defaultShippingRate || 0}
                           onChange={e => handleChange('defaultShippingRate', Number(e.target.value))}
                         />
+                      </div>
+
+                      <div className="border-t pt-4 mt-4">
+                        <h4 className="text-sm font-medium mb-2">Advanced Shipping Logic</h4>
+                        <div className="space-y-4">
+                          <div className="space-y-2">
+                            <Label>Availability Rule</Label>
+                            <RuleSelector
+                              value={settings.shippingAvailabilityRuleId}
+                              onChange={val => handleChange('shippingAvailabilityRuleId', val)}
+                              moduleType="shipping"
+                              placeholder="Condition for default shipping..."
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label>Surcharge Rule</Label>
+                            <RuleSelector
+                              value={settings.shippingSurchargeRuleId}
+                              onChange={val => handleChange('shippingSurchargeRuleId', val)}
+                              moduleType="shipping"
+                              placeholder="Apply surcharge if..."
+                            />
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </TabsContent>
@@ -281,6 +332,10 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 
                   <TabsContent value="security" className="h-full mt-0 space-y-6">
                     <TwoFactorSettings />
+                  </TabsContent>
+
+                  <TabsContent value="rules" className="h-full mt-0">
+                    <RuleManager />
                   </TabsContent>
 
                   <TabsContent value="number-ranges" className="space-y-6 mt-0">
@@ -465,7 +520,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
           </div>
         </Tabs>
 
-        {activeTab !== 'users' && activeTab !== 'security' && (
+        {activeTab !== 'users' && activeTab !== 'security' && activeTab !== 'rules' && (
           <DialogFooter>
             <Button variant="outline" onClick={onClose} disabled={saving}>Cancel</Button>
             <Button onClick={handleSave} disabled={saving}>

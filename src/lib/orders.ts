@@ -385,12 +385,12 @@ export async function getOrdersMySQL(options: {
   }
 
   if (options.status && options.status !== 'all') {
-    baseSql += ` AND o.status = ?`;
-    params.push(options.status.toLowerCase()); // Ensure DB stores lowercase or match exact
+    baseSql += ` AND LOWER(o.status) = ?`;
+    params.push(options.status.toLowerCase());
   }
 
   if (options.paymentStatus && options.paymentStatus !== 'all') {
-    baseSql += ` AND o.payment_status = ?`;
+    baseSql += ` AND LOWER(o.payment_status) = ?`;
     params.push(options.paymentStatus.toLowerCase());
   }
 
@@ -496,7 +496,7 @@ export async function getOrderStatsMySQL() {
   const rows = await query<{ totalOrders: number; totalRevenue: number; pendingOrders: number; deliveredOrders: number }>(`
     SELECT 
       COUNT(*) as totalOrders,
-      SUM(total) as totalRevenue,
+      SUM(CASE WHEN payment_status = 'paid' THEN total ELSE 0 END) as totalRevenue,
       SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pendingOrders,
       SUM(CASE WHEN status = 'delivered' THEN 1 ELSE 0 END) as deliveredOrders
     FROM orders

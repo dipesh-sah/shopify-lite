@@ -11,7 +11,7 @@ import { ArrowLeft } from "lucide-react"
 export default async function SettingsPage() {
   const user = await getSessionAction()
   if (!user) {
-    console.log('SettingsPage: User not authenticated, redirecting to /signin')
+
     redirect("/signin")
   }
 

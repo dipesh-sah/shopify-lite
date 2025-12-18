@@ -32,12 +32,16 @@ import { useToast } from "@/components/ui/use-toast"
 import { createCustomerAction, updateCustomerAction } from "@/actions/customers"
 import Link from "next/link"
 
+import { TagInput } from "@/components/admin/TagInput"
+import { Package } from "lucide-react"
+
 const customerSchema = z.object({
   firstName: z.string().min(1, "First name is required"),
   lastName: z.string().min(1, "Last name is required"),
   email: z.string().email("Invalid email address"),
   phone: z.string().optional(),
   notes: z.string().optional(),
+  tags: z.array(z.string()).optional(),
   acceptsMarketing: z.boolean(),
   address: z.object({
     firstName: z.string().optional(),
@@ -56,9 +60,10 @@ type CustomerFormValues = z.infer<typeof customerSchema>
 interface CustomerFormProps {
   initialData?: any
   isEditing?: boolean
+  orders?: any[]
 }
 
-export function CustomerForm({ initialData, isEditing = false }: CustomerFormProps) {
+export function CustomerForm({ initialData, isEditing = false, orders = [] }: CustomerFormProps) {
   const router = useRouter()
   const { toast } = useToast()
   const [loading, setLoading] = useState(false)
@@ -71,6 +76,7 @@ export function CustomerForm({ initialData, isEditing = false }: CustomerFormPro
       email: "",
       phone: "",
       notes: "",
+      tags: [],
       acceptsMarketing: false,
       address: {
         firstName: "",
@@ -355,6 +361,49 @@ export function CustomerForm({ initialData, isEditing = false }: CustomerFormPro
                 />
               </CardContent>
             </Card>
+
+            {/* Orders History */}
+            {isEditing && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Orders</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {orders.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground text-sm">
+                      No orders found for this customer.
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {orders.map((order) => (
+                        <div key={order.id} className="flex items-center justify-between border-b pb-4 last:border-0 last:pb-0">
+                          <div className="flex items-center gap-3">
+                            <div className="bg-gray-100 p-2 rounded">
+                              <Package className="h-4 w-4 text-gray-500" />
+                            </div>
+                            <div>
+                              <Link href={`/admin/orders/${order.id}`} className="text-sm font-medium hover:underline">
+                                Order #{order.orderNumber || order.id.slice(-6).toUpperCase()}
+                              </Link>
+                              <p className="text-xs text-muted-foreground">
+                                {new Date(order.createdAt).toLocaleDateString()} • {order.items?.length || 0} items
+                              </p>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-sm font-medium">${Number(order.total).toFixed(2)}</p>
+                            <span className={`text-[10px] px-2 py-0.5 rounded-full uppercase font-bold tracking-wide ${order.status === 'paid' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                              }`}>
+                              {order.status}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
           </div>
 
           <div>
@@ -384,7 +433,22 @@ export function CustomerForm({ initialData, isEditing = false }: CustomerFormPro
                   <CardTitle>Tags</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-sm text-muted-foreground">Tags implementation coming soon.</div>
+                  <FormField
+                    control={form.control}
+                    name="tags"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormControl>
+                          <TagInput
+                            tags={field.value || []}
+                            onChange={field.onChange}
+                            placeholder="Add tags..."
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                 </CardContent>
               </Card>
             </div>

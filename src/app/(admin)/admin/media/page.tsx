@@ -7,12 +7,12 @@ import { showConfirm } from '@/components/ui/Confirm'
 import Spinner from '@/components/ui/Spinner'
 import { Button } from '@/components/ui/button'
 import { Trash2, Edit2, Copy, Upload as UploadIcon, Link as LinkIcon } from 'lucide-react'
+import { ImageDetailsDialog } from '@/components/admin/media/ImageDetailsDialog'
 
 export default function MediaPage() {
   const [images, setImages] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
-  const [editingId, setEditingId] = useState<string | null>(null)
-  const [editAltText, setEditAltText] = useState('')
+  const [selectedImage, setSelectedImage] = useState<any | null>(null)
   const [isUploading, setIsUploading] = useState(false)
 
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -50,13 +50,12 @@ export default function MediaPage() {
     }
   }
 
-  async function handleUpdate(id: string) {
+  async function handleUpdate(id: string, newAltText: string) {
     try {
-      const res = await updateImageAction(id, editAltText)
+      const res = await updateImageAction(id, newAltText)
       if (res.error) throw new Error(res.error)
 
-      setImages(images.map(img => img.id === id ? { ...img, altText: editAltText } : img))
-      setEditingId(null)
+      setImages(images.map(img => img.id === id ? { ...img, altText: newAltText } : img))
       showToast('Image updated successfully', 'success')
     } catch (error) {
       console.error('Failed to update image:', error)
@@ -179,73 +178,47 @@ export default function MediaPage() {
       ) : (
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-6">
           {images.map(img => (
-            <div key={img.id} className="group relative border rounded-lg overflow-hidden bg-card shadow-sm hover:shadow-md transition-shadow">
+            <div
+              key={img.id}
+              className="group relative border rounded-lg overflow-hidden bg-card shadow-sm hover:shadow-md transition-shadow cursor-pointer"
+              onClick={() => setSelectedImage(img)}
+            >
               <div className="aspect-square bg-muted relative">
                 <img
                   src={img.url}
                   alt={img.altText || img.productTitle}
                   className="object-cover w-full h-full"
                 />
-                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    className="h-8 w-8 p-0"
-                    title="Copy URL"
-                    onClick={() => copyToClipboard(img.url)}
-                  >
-                    <Copy className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    className="h-8 w-8 p-0"
-                    title="Edit Alt Text"
-                    onClick={() => startEdit(img)}
-                  >
-                    <Edit2 className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="destructive"
-                    className="h-8 w-8 p-0"
-                    title="Delete"
-                    onClick={() => handleDelete(img.id)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
+
+                {/* Internal Actions (Stop Propagation) */}
+                <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  {/* Simplified quick actions, full actions in modal */}
                 </div>
               </div>
 
               <div className="p-3 text-xs">
-                {editingId === img.id ? (
-                  <div className="space-y-2">
-                    <input
-                      type="text"
-                      value={editAltText}
-                      onChange={(e) => setEditAltText(e.target.value)}
-                      className="w-full px-2 py-1 border rounded"
-                      placeholder="Alt text"
-                      autoFocus
-                    />
-                    <div className="flex gap-1">
-                      <Button size="sm" className="h-6 text-xs w-full" onClick={() => handleUpdate(img.id)}>Save</Button>
-                      <Button size="sm" variant="outline" className="h-6 text-xs w-full" onClick={() => setEditingId(null)}>Cancel</Button>
-                    </div>
-                  </div>
-                ) : (
-                  <>
-                    <p className="font-medium truncate" title={img.productTitle}>{img.productTitle || 'Unassigned'}</p>
-                    <p className="text-muted-foreground truncate" title={img.altText || 'No alt text'}>
-                      {img.altText || <span className="italic">No alt text</span>}
-                    </p>
-                  </>
-                )}
+                <p className="font-medium truncate" title={img.productTitle}>{img.productTitle || 'Unassigned'}</p>
+                <p className="text-muted-foreground truncate" title={img.altText || 'No alt text'}>
+                  {img.altText || <span className="italic">No alt text</span>}
+                </p>
               </div>
             </div>
           ))}
         </div>
       )}
+
+      <ImageDetailsDialog
+        image={selectedImage}
+        isOpen={!!selectedImage}
+        onClose={() => setSelectedImage(null)}
+        onUpdate={async (id, altText) => {
+          await handleUpdate(id, altText)
+        }}
+        onDelete={async (id) => {
+          await handleDelete(id)
+        }}
+      />
     </div>
   )
 }

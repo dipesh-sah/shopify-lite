@@ -11,6 +11,16 @@ export async function getCompaniesAction(options?: any) {
   return data
 }
 
+export async function getCompanyAction(id: string) {
+  try {
+    const data = await import("@/lib/companies").then(mod => mod.getCompany(id))
+    return data
+  } catch (error) {
+    console.error("Error getting company:", error)
+    return null
+  }
+}
+
 export async function createCompanyAction(prevState: any, formData: FormData) {
   try {
     const rawFormData = Object.fromEntries(formData.entries())

@@ -18,7 +18,8 @@ import {
   Image,
   Star,
   Store,
-  LogOut
+  LogOut,
+  FileText
 } from "lucide-react"
 
 interface SidebarItem {

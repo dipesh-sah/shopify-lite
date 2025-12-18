@@ -10,13 +10,17 @@ import { Button } from "@/components/ui/button"
 import Spinner from '@/components/ui/Spinner'
 import { ImagePicker } from "@/components/admin/ImagePicker"
 import { ArrowLeft } from "lucide-react"
+import { RichTextEditor } from "@/components/admin/RichTextEditor"
 
-export default function EditProductPage({ params }: { params: Promise<{ id: string }> }) {
+// Next.js 15+ compatible
+export default async function ProductEditPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const initialProduct = await getProductAction(id); // Renamed to avoid conflict with useState
   const router = useRouter()
   const [loading, setLoading] = useState(false)
-  const [product, setProduct] = useState<any>(null)
-  const [images, setImages] = useState<string[]>([])
-  const [tags, setTags] = useState<string[]>([])
+  const [product, setProduct] = useState<any>(initialProduct) // Initialize with fetched product
+  const [images, setImages] = useState<string[]>(initialProduct?.images || [])
+  const [tags, setTags] = useState<string[]>(initialProduct?.tags || [])
   const [tagInput, setTagInput] = useState("")
   const [productId, setProductId] = useState<string>("")
   const [categories, setCategories] = useState<any[]>([])
@@ -32,6 +36,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
   const [variantErrors, setVariantErrors] = useState<Record<string, string>>({})
   const [attributeGroups, setAttributeGroups] = useState<any[]>([])
   const [attrsLoading, setAttrsLoading] = useState(true)
+  const [description, setDescription] = useState("")
 
   useEffect(() => {
     async function loadData() {
@@ -46,12 +51,13 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
         setImages(productData.images || [])
         setTags(productData.tags || [])
         setVariants(productData.variants || [])
+        setDescription(productData.description || "")
       }
 
       // Load categories
       try {
-        const cats = await getCollectionsAction()
-        setCategories(cats)
+        const catsRes = await getCollectionsAction()
+        setCategories(catsRes.collections)
       } catch (error) {
         console.error('Failed to load categories:', error)
       } finally {
@@ -104,6 +110,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
     formData.append('tags', JSON.stringify(tags))
     formData.append('productId', productId)
     formData.append('variants', JSON.stringify(variants))
+    formData.set('description', description)
 
     try {
       await updateProductAction(formData)
@@ -241,14 +248,25 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
               <label htmlFor="description" className="block text-sm font-medium mb-2">
                 Description *
               </label>
-              <textarea
-                id="description"
-                name="description"
-                required
-                rows={4}
-                defaultValue={product.description}
-                className="w-full px-3 py-2 border rounded-md"
+              <RichTextEditor
+                value={description}
+                onChange={setDescription}
+                placeholder="Describe your product..."
+                className="min-h-[250px]"
+                key={Object.keys(product.variants || {}).length + (product.updatedAt ? product.updatedAt.toString() : 'new')}
               />
+              <p className="text-xs text-muted-foreground mt-1">Debug: Desc Len: {description.length} | Val: {description.substring(0, 20)}...</p>
+              <input type="hidden" name="description" value={description} />
+
+              <div className="mt-4 p-4 border rounded bg-yellow-50 dark:bg-yellow-900/20">
+                <p className="text-xs font-bold text-yellow-800 dark:text-yellow-200 mb-2">DEBUG: Raw Description Content</p>
+                <textarea
+                  className="w-full h-32 text-xs font-mono p-2 border rounded"
+                  value={description}
+                  readOnly
+                />
+                <p className="text-xs mt-1 text-muted-foreground">If you see text here but not in the editor above, the Editor is failing to render it.</p>
+              </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
