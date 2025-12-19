@@ -150,6 +150,7 @@ export async function getSessionAction() {
     const user = await getCustomer(session.customerId.toString())
 
     if (!user || !user.isActive) {
+      console.log('getSessionAction: User not found or inactive', session.customerId)
       return null
     }
 
