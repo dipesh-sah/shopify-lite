@@ -7,6 +7,8 @@ import { getOrderAction, updateOrderStatusAction, updatePaymentStatusAction } fr
 import { ArrowLeft, Package, CheckCircle, Clock, AlertCircle, Mail, Calendar, DollarSign, Pencil, Download } from 'lucide-react'
 import { useStoreSettings } from '@/components/providers/StoreSettingsProvider'
 import { generateInvoice } from '@/components/admin/orders/InvoiceGenerator'
+import { MetafieldsRenderer } from "@/components/admin/metadata/MetafieldsRenderer"
+import { updateOrderAction } from '@/actions/orders'
 
 interface Order {
   id: string
@@ -429,6 +431,15 @@ export default function AdminOrderDetailsPage() {
             </div>
             <p className="text-sm text-gray-500">No notes from customer</p>
           </div>
+
+          {/* Metafields */}
+          <MetafieldsRenderer
+            ownerType="order"
+            ownerId={order.id}
+            onChange={async (metafields) => {
+              await updateOrderAction(order.id, { metafields })
+            }}
+          />
 
           {/* Customer */}
           <div className="bg-white rounded-lg shadow-sm border p-4">

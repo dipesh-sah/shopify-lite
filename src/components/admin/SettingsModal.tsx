@@ -21,6 +21,8 @@ import { UsersManager } from './UsersManager'
 import { TaxManager } from './TaxManager'
 import { RuleManager } from './rules/RuleManager'
 import { RuleSelector } from './rules/RuleSelector'
+import { MetafieldDefinitionsManager } from './metadata/MetafieldDefinitionsManager'
+import { MetaobjectDefinitionsManager } from './metadata/MetaobjectDefinitionsManager'
 const TwoFactorSettings = dynamic(() => import('./TwoFactorSettings').then(mod => mod.TwoFactorSettings), {
   ssr: false,
   loading: () => <Loader2 className="h-6 w-6 animate-spin" />
@@ -127,6 +129,8 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
               <TabsTrigger value="content" className="w-full justify-start px-3 py-2 text-sm font-medium">Content</TabsTrigger>
               <TabsTrigger value="users" className="w-full justify-start px-3 py-2 text-sm font-medium">Users</TabsTrigger>
               <TabsTrigger value="rules" className="w-full justify-start px-3 py-2 text-sm font-medium">Rules</TabsTrigger>
+              <TabsTrigger value="metafields" className="w-full justify-start px-3 py-2 text-sm font-medium">Metafields</TabsTrigger>
+              <TabsTrigger value="metaobjects" className="w-full justify-start px-3 py-2 text-sm font-medium">Metaobjects</TabsTrigger>
               <TabsTrigger value="number-ranges" className="w-full justify-start px-3 py-2 text-sm font-medium">Number Ranges</TabsTrigger>
             </TabsList>
           </div>
@@ -338,6 +342,14 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                     <RuleManager />
                   </TabsContent>
 
+                  <TabsContent value="metafields" className="h-full mt-0">
+                    <MetafieldDefinitionsManager />
+                  </TabsContent>
+
+                  <TabsContent value="metaobjects" className="h-full mt-0">
+                    <MetaobjectDefinitionsManager />
+                  </TabsContent>
+
                   <TabsContent value="number-ranges" className="space-y-6 mt-0">
                     <div>
                       <h3 className="text-lg font-medium">Number Ranges</h3>
@@ -520,7 +532,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
           </div>
         </Tabs>
 
-        {activeTab !== 'users' && activeTab !== 'security' && activeTab !== 'rules' && (
+        {activeTab !== 'users' && activeTab !== 'security' && activeTab !== 'rules' && activeTab !== 'metafields' && activeTab !== 'metaobjects' && (
           <DialogFooter>
             <Button variant="outline" onClick={onClose} disabled={saving}>Cancel</Button>
             <Button onClick={handleSave} disabled={saving}>

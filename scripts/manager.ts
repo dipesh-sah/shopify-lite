@@ -14,10 +14,11 @@ import { createOrderMySQL } from '../src/lib/orders';
 import { createProduct, updateProduct, getProduct } from '../src/lib/products';
 import { createReview, getReviewsByProduct } from '../src/lib/reviews';
 import { createPromotion } from '../src/lib/promotions';
-import { getSalesAnalytics, getCustomerAnalytics } from '../src/lib/analytics';
+// import { getSalesAnalytics, getCustomerAnalytics } from '../src/lib/analytics';
 import { getSeoMetadata, resolveRedirect } from '../src/lib/seo';
 import { logAudit } from '../src/lib/audit';
 import { migrateShipping } from './migrate-shipping';
+import { migrateMetadata } from './migrate-metadata';
 
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
@@ -484,7 +485,8 @@ const tasks: Record<string, { name: string, fn: () => Promise<void> }> = {
   '26': { name: 'Verify API (Requires Server)', fn: verifyApi },
   '27': { name: 'Debug Session Persistence', fn: debugSessionPersistence },
   '28': { name: 'Debug User Role', fn: debugUserRole },
-  '29': { name: 'Migrate: Shipping Tables', fn: migrateShipping }
+  '29': { name: 'Migrate: Shipping Tables', fn: migrateShipping },
+  '30': { name: 'Migrate: Metadata System', fn: migrateMetadata }
 };
 
 async function main() {

@@ -16,6 +16,7 @@ import { MultiSelect } from "@/components/ui/multi-select"
 import { ProductOptions } from "@/components/admin/ProductOptions"
 import { VariantsTable, Variant } from "@/components/admin/VariantsTable"
 import { ArrowLeft } from "lucide-react"
+import { MetafieldsRenderer } from "@/components/admin/metadata/MetafieldsRenderer"
 
 export default function ProductDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter()
@@ -35,6 +36,8 @@ export default function ProductDetailsPage({ params }: { params: Promise<{ id: s
   // New Variant System State
   const [options, setOptions] = useState<any[]>([])
   const [variants, setVariants] = useState<Variant[]>([])
+
+  const [metafields, setMetafields] = useState<any[]>([])
 
   const [mediaList, setMediaList] = useState<any[]>([])
   const [mediaLoading, setMediaLoading] = useState<boolean>(true)
@@ -222,6 +225,7 @@ export default function ProductDetailsPage({ params }: { params: Promise<{ id: s
     formData.append('images', JSON.stringify(images))
     formData.append('variants', JSON.stringify(variants))
     formData.append('collectionIds', JSON.stringify(selectedCollections))
+    formData.append('metafields', JSON.stringify(metafields))
 
     // Handle checkboxes
     if (!formData.has('trackQuantity')) formData.append('trackQuantity', 'false')
@@ -501,6 +505,9 @@ export default function ProductDetailsPage({ params }: { params: Promise<{ id: s
           <h2 className="text-lg font-semibold mb-4">Product Images</h2>
           <ImagePicker images={images} onChange={setImages} />
         </div>
+
+        {/* Metafields */}
+        <MetafieldsRenderer ownerType="product" ownerId={productId} onChange={setMetafields} />
 
         {/* Shipping */}
         <div className="rounded-lg border bg-card p-6">

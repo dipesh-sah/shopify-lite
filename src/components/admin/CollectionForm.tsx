@@ -41,6 +41,7 @@ import { updateCollectionAction, createCollectionAction } from "@/actions/collec
 import { getProductsAction as fetchProducts } from "@/actions/products"
 import { ImagePicker } from "@/components/admin/ImagePicker"
 import { RichTextEditor } from "@/components/admin/RichTextEditor"
+import { MetafieldsRenderer } from "@/components/admin/metadata/MetafieldsRenderer"
 import { cn } from "@/lib/utils"
 import { Product } from "@/lib/products"
 
@@ -62,6 +63,7 @@ export function CollectionForm({ collection, initialSelectedProducts = [] }: Col
     image: collection?.image || '',
     seoTitle: collection?.seoTitle || '',
     seoDescription: collection?.seoDescription || '',
+    metafields: [] as any[]
   })
 
   // Selected Products Cache (starts with initial, adds more as we browse)
@@ -373,6 +375,13 @@ export function CollectionForm({ collection, initialSelectedProducts = [] }: Col
 
         {/* Sidebar Column */}
         <div className="space-y-6">
+
+          {/* Metafields */}
+          <MetafieldsRenderer
+            ownerType="collection"
+            ownerId={collection?.id}
+            onChange={(metafields) => setFormData(prev => ({ ...prev, metafields }))}
+          />
 
 
           <Card>

@@ -1,6 +1,7 @@
 "use server"
 
 import { revalidatePath } from "next/cache"
+import { updateMetafieldAction } from "@/actions/metadata"
 import * as db from "@/lib/collections"
 
 export async function getCollectionsAction(options: { search?: string; limit?: number; offset?: number } = {}) {
@@ -42,6 +43,21 @@ export async function getSubcategoriesAction(parentId: string) {
 export async function createCollectionAction(data: any) {
   try {
     const id = await db.createCollection(data)
+
+    // Handle Metafields
+    if (data.metafields && Array.isArray(data.metafields)) {
+      for (const field of data.metafields) {
+        await updateMetafieldAction(
+          'collection',
+          id,
+          field.namespace || 'custom',
+          field.key,
+          field.value,
+          field.type
+        )
+      }
+    }
+
     revalidatePath("/admin/collections")
     return { success: true, id }
   } catch (error) {
@@ -53,6 +69,21 @@ export async function createCollectionAction(data: any) {
 export async function updateCollectionAction(id: string, data: any) {
   try {
     await db.updateCollection(id, data)
+
+    // Handle Metafields
+    if (data.metafields && Array.isArray(data.metafields)) {
+      for (const field of data.metafields) {
+        await updateMetafieldAction(
+          'collection',
+          id,
+          field.namespace || 'custom',
+          field.key,
+          field.value,
+          field.type
+        )
+      }
+    }
+
     revalidatePath("/admin/collections")
     return { success: true }
   } catch (error) {

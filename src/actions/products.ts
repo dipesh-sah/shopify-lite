@@ -1,6 +1,7 @@
 "use server"
 
 import { revalidateTag, revalidatePath } from "next/cache"
+import { updateMetafieldAction } from "@/actions/metadata"
 import * as db from "@/lib/products"
 
 export async function getProductsAction(options: {
@@ -69,6 +70,21 @@ export async function createProductAction(formData: FormData) {
     // @ts-ignore
     revalidateTag('products')
     revalidatePath('/admin/products')
+
+    // Handle Metafields
+    if (data.metafields && Array.isArray(data.metafields)) {
+      for (const field of data.metafields) {
+        await updateMetafieldAction(
+          'product',
+          id,
+          field.namespace || 'custom',
+          field.key,
+          field.value,
+          field.type
+        )
+      }
+    }
+
     return { success: true, id }
   } catch (error) {
     console.error("Error creating product:", error)
@@ -95,6 +111,21 @@ export async function updateProductAction(idOrFormData: string | FormData, formD
     console.log('[updateProductAction] New description:', data.description)
 
     await db.updateProduct(id, data)
+
+    // Handle Metafields
+    if (data.metafields && Array.isArray(data.metafields)) {
+      for (const field of data.metafields) {
+        await updateMetafieldAction(
+          'product',
+          id,
+          field.namespace || 'custom',
+          field.key,
+          field.value,
+          field.type
+        )
+      }
+    }
+
     // @ts-ignore
     revalidateTag('products')
     revalidatePath('/admin/products')
@@ -139,6 +170,7 @@ function parseProductFormData(formData: FormData) {
   const variantsStr = getString('variants');
   const tagsStr = getString('tags');
   const collectionsStr = getString('collectionIds');
+  const metafieldsStr = getString('metafields');
 
   return {
     title: getString('name') || getString('title'),
@@ -169,6 +201,7 @@ function parseProductFormData(formData: FormData) {
       title: getString('seoTitle'),
       description: getString('seoDescription'),
       // Add other fields as needed
-    }
+    },
+    metafields: metafieldsStr ? JSON.parse(metafieldsStr) : []
   }
 }

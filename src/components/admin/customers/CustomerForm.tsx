@@ -34,6 +34,7 @@ import Link from "next/link"
 
 import { TagInput } from "@/components/admin/TagInput"
 import { Package } from "lucide-react"
+import { MetafieldsRenderer } from "@/components/admin/metadata/MetafieldsRenderer"
 
 const customerSchema = z.object({
   firstName: z.string().min(1, "First name is required"),
@@ -52,7 +53,9 @@ const customerSchema = z.object({
     provinceCode: z.string().optional(),
     zip: z.string().min(1, "ZIP code is required"),
     phone: z.string().optional(),
+    phone: z.string().optional(),
   }).optional(),
+  metafields: z.array(z.any()).optional().default([])
 })
 
 type CustomerFormValues = z.infer<typeof customerSchema>
@@ -87,7 +90,8 @@ export function CustomerForm({ initialData, isEditing = false, orders = [] }: Cu
         provinceCode: "",
         zip: "",
         phone: "",
-      }
+      },
+      metafields: []
     },
   })
 
@@ -453,8 +457,18 @@ export function CustomerForm({ initialData, isEditing = false, orders = [] }: Cu
               </Card>
             </div>
           </div>
+
+          <div className="mt-4">
+            {/* Metafields */}
+            <MetafieldsRenderer
+              ownerType="customer"
+              ownerId={initialData?.id}
+              onChange={(metafields) => form.setValue('metafields', metafields)}
+            />
+          </div>
         </div>
-      </form>
-    </Form>
+      </div>
+    </form>
+    </Form >
   )
 }

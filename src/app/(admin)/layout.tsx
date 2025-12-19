@@ -28,9 +28,9 @@ export default function AdminLayout({
   }
 
   return (
-    <div className="flex h-screen w-full overflow-hidden bg-muted/10">
-      {/* Desktop Sidebar */}
-      <div className="hidden md:block w-64 flex-shrink-0 h-full">
+    <div className="flex min-h-screen w-full bg-muted/10">
+      {/* Desktop Sidebar - Sticky */}
+      <div className="hidden md:block w-64 flex-shrink-0 sticky top-0 h-screen self-start border-r">
         <AdminSidebar className="w-full h-full" />
       </div>
 
@@ -41,11 +41,11 @@ export default function AdminLayout({
         </SheetContent>
       </Sheet>
 
-      <div className="flex flex-col flex-1 overflow-hidden">
+      <div className="flex flex-col flex-1">
         <AdminHeader onMenuClick={() => setSidebarOpen(true)} />
 
-        <main className="flex-1 overflow-y-auto p-4 md:p-6 scroll-smooth">
-          <div className="ma-w-7xl mx-auto w-full">
+        <main className="flex-1 p-4 md:p-6">
+          <div className="max-w-7xl mx-auto w-full">
             {children}
           </div>
           <ToastContainer />

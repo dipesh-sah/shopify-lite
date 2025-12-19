@@ -18,6 +18,7 @@ import { ArrowLeft } from "lucide-react"
 
 import { previewNextNumberAction } from "@/actions/settings"
 import { RichTextEditor } from "@/components/admin/RichTextEditor"
+import { MetafieldsRenderer } from "@/components/admin/metadata/MetafieldsRenderer"
 
 export default function NewProductPage() {
   const router = useRouter()
@@ -43,6 +44,8 @@ export default function NewProductPage() {
   const [options, setOptions] = useState<any[]>([]) // [{ id, name, values: [] }]
   const [variants, setVariants] = useState<Variant[]>([])
   const [description, setDescription] = useState("")
+
+  const [metafields, setMetafields] = useState<any[]>([])
 
 
 
@@ -129,6 +132,7 @@ export default function NewProductPage() {
     // formData.append('tags', JSON.stringify(tags))
     formData.append('variants', JSON.stringify(variants))
     formData.append('collectionIds', JSON.stringify(selectedCollections))
+    formData.append('metafields', JSON.stringify(metafields))
     formData.set('description', description)
 
     try {
@@ -399,6 +403,9 @@ export default function NewProductPage() {
           <h2 className="text-lg font-semibold mb-4">Product Images</h2>
           <ImagePicker images={images} onChange={setImages} />
         </div>
+
+        {/* Metafields */}
+        <MetafieldsRenderer ownerType="product" onChange={setMetafields} />
 
         {/* Shipping */}
         <div className="rounded-lg border bg-card p-6">

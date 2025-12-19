@@ -76,7 +76,7 @@ export const SelectContent = React.forwardRef<HTMLDivElement, any>(({ className,
       sideOffset={5}
       {...props}
     >
-      <div className={cn("p-1", className)}>
+      <div className="p-1">
         {children}
       </div>
     </DropdownMenuPrimitive.Content>
@@ -112,3 +112,14 @@ export const SelectItem = React.forwardRef<HTMLDivElement, any>(({ className, ch
   )
 })
 SelectItem.displayName = "SelectItem"
+
+export const SelectGroup = DropdownMenuPrimitive.Group
+
+export const SelectLabel = React.forwardRef<HTMLDivElement, any>(({ className, ...props }, ref) => (
+  <DropdownMenuPrimitive.Label
+    ref={ref}
+    className={cn("px-2 py-1.5 text-sm font-semibold", className)}
+    {...props}
+  />
+))
+SelectLabel.displayName = "SelectLabel"

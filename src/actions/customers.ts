@@ -1,6 +1,7 @@
 "use server"
 
 import { getCustomers, getCustomer, createCustomer, updateCustomer, deleteCustomer } from "@/lib/customers"
+import { updateMetafieldAction } from "@/actions/metadata"
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 
@@ -27,6 +28,21 @@ export async function getCustomerAction(id: string) {
 export async function createCustomerAction(data: any) {
   try {
     const id = await createCustomer(data)
+
+    // Handle Metafields
+    if (data.metafields && Array.isArray(data.metafields)) {
+      for (const field of data.metafields) {
+        await updateMetafieldAction(
+          'customer',
+          id,
+          field.namespace || 'custom',
+          field.key,
+          field.value,
+          field.type
+        )
+      }
+    }
+
     revalidatePath("/admin/customers")
     return { success: true, id }
   } catch (error) {
@@ -38,6 +54,21 @@ export async function createCustomerAction(data: any) {
 export async function updateCustomerAction(id: string, data: any) {
   try {
     await updateCustomer(id, data)
+
+    // Handle Metafields
+    if (data.metafields && Array.isArray(data.metafields)) {
+      for (const field of data.metafields) {
+        await updateMetafieldAction(
+          'customer',
+          id,
+          field.namespace || 'custom',
+          field.key,
+          field.value,
+          field.type
+        )
+      }
+    }
+
     revalidatePath("/admin/customers")
     revalidatePath(`/admin/customers/${id}`)
     return { success: true }

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getProductReviewsAction, createReviewAction } from '@/actions/reviews';
+import { getReviewsAction, createReviewAction } from '@/actions/reviews';
 import { Star, User } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { showToast } from '@/components/ui/Toast';
@@ -15,11 +15,7 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
   const [showForm, setShowForm] = useState(false);
-  const [formData, setFormData] = useState({
-    rating: 5,
-    title: '',
-    content: '',
-  });
+  const [rating, setRating] = useState(5);
 
   useEffect(() => {
     loadReviews();
@@ -28,7 +24,7 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
   async function loadReviews() {
     setLoading(true);
     try {
-      const data = await getProductReviewsAction(productId, true); // Only approved reviews
+      const data = await getReviewsAction(productId); // No second arg needed
       setReviews(data);
     } catch (error) {
       console.error('Error loading reviews:', error);
@@ -37,31 +33,32 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
     }
   }
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  async function handleSubmit(formData: FormData) {
     if (!user) {
       showToast('Please sign in to write a review', 'error');
       return;
     }
 
-    try {
-      await createReviewAction({
-        productId,
-        userId: user.uid,
-        userName: user.displayName || user.email || 'Anonymous',
-        rating: formData.rating,
-        title: formData.title,
-        content: formData.content,
-        isApproved: true, // Auto-approve for demo, usually false
-      });
+    // Append missing fields from client state/context
+    formData.append('productId', productId);
+    formData.append('rating', rating.toString());
+    formData.append('name', user.displayName || 'Anonymous');
+    formData.append('email', user.email || 'anonymous@example.com');
 
-      showToast('Review submitted successfully!', 'success');
-      setShowForm(false);
-      setFormData({ rating: 5, title: '', content: '' });
-      loadReviews();
+    try {
+      const result = await createReviewAction(formData);
+
+      if (result.success) {
+        showToast('Review submitted successfully!', 'success');
+        setShowForm(false);
+        setRating(5);
+        loadReviews();
+      } else {
+        showToast(result.error || 'Failed to submit review', 'error');
+      }
     } catch (error) {
       console.error('Error submitting review:', error);
-      showToast('Failed to submit review', 'error');
+      showToast('An unexpected error occurred', 'error');
     }
   }
 
@@ -98,7 +95,7 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
       </div>
 
       {showForm && (
-        <form onSubmit={handleSubmit} className="bg-gray-50 p-6 rounded-lg mb-8 border">
+        <form action={handleSubmit} className="bg-gray-50 p-6 rounded-lg mb-8 border">
           <h3 className="font-semibold mb-4">Write your review</h3>
 
           <div className="mb-4">
@@ -108,8 +105,8 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
                 <button
                   key={star}
                   type="button"
-                  onClick={() => setFormData({ ...formData, rating: star })}
-                  className={`text-2xl focus:outline-none ${star <= formData.rating ? 'text-yellow-400' : 'text-gray-300'
+                  onClick={() => setRating(star)}
+                  className={`text-2xl focus:outline-none ${star <= rating ? 'text-yellow-400' : 'text-gray-300'
                     }`}
                 >
                   ★
@@ -121,9 +118,8 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
           <div className="mb-4">
             <label className="block text-sm font-medium mb-2">Title</label>
             <input
+              name="title"
               type="text"
-              value={formData.title}
-              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
               className="w-full border rounded px-3 py-2"
               placeholder="Summarize your experience"
               required
@@ -133,8 +129,7 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
           <div className="mb-4">
             <label className="block text-sm font-medium mb-2">Review</label>
             <textarea
-              value={formData.content}
-              onChange={(e) => setFormData({ ...formData, content: e.target.value })}
+              name="content"
               className="w-full border rounded px-3 py-2"
               rows={4}
               placeholder="Tell us more about what you liked or disliked"
@@ -171,10 +166,10 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
                   <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
                     <User className="w-4 h-4 text-gray-500" />
                   </div>
-                  <span className="font-medium">{review.userName}</span>
+                  <span className="font-medium">{review.author_name}</span>
                 </div>
                 <span className="text-sm text-gray-500">
-                  {review.createdAt?.toDate?.().toLocaleDateString()}
+                  {review.created_at ? new Date(review.created_at).toLocaleDateString() : ''}
                 </span>
               </div>
               <div className="flex text-yellow-400 mb-2">

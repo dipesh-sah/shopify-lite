@@ -15,18 +15,22 @@ export function ReviewForm({ productId, onReviewSubmit }: { productId: string, o
     if (rating === 0) return alert('Please select a rating')
 
     setIsSubmitting(true)
-    formData.append('productId', productId)
+    formData.append('productId', String(productId))
     formData.append('rating', rating.toString())
 
     try {
-      await createReviewAction(formData)
-      setIsSuccess(true)
-      setRating(0)
-      if (onReviewSubmit) {
-        onReviewSubmit()
+      const result = await createReviewAction(formData)
+      if (result.success) {
+        setIsSuccess(true)
+        setRating(0)
+        if (onReviewSubmit) {
+          onReviewSubmit()
+        }
+      } else {
+        alert(result.error || 'Failed to submit review')
       }
     } catch (err) {
-      alert('Failed to submit review')
+      alert('An unexpected error occurred')
     } finally {
       setIsSubmitting(false)
     }

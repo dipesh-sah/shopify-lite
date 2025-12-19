@@ -1,6 +1,8 @@
 "use server"
 
 import { deleteOrderMySQL as deleteOrder, updateOrderStatusMySQL as updateOrderStatus, updatePaymentStatusMySQL as updatePaymentStatus, getOrderMySQL as getOrder, createOrderMySQL as createOrder, getCustomerOrdersMySQL as getCustomerOrders, getOrdersMySQL, getOrderStatsMySQL } from "@/lib/orders"
+import { updateMetafieldAction } from "@/actions/metadata"
+import { revalidatePath } from "next/cache"
 
 export async function deleteOrderAction(id: string) {
   try {
@@ -29,6 +31,29 @@ export async function updatePaymentStatusAction(id: string, status: 'paid' | 'pe
   } catch (error) {
     console.error("Error updating payment status:", error)
     return { error: "Failed to update payment status" }
+  }
+}
+
+export async function updateOrderAction(id: string, data: any) {
+  try {
+    // Handle Metafields
+    if (data.metafields && Array.isArray(data.metafields)) {
+      for (const field of data.metafields) {
+        await updateMetafieldAction(
+          'order',
+          id,
+          field.namespace || 'custom',
+          field.key,
+          field.value,
+          field.type
+        )
+      }
+    }
+    revalidatePath(`/admin/orders/${id}`)
+    return { success: true }
+  } catch (error) {
+    console.error("Error updating order:", error)
+    return { success: false, error: "Failed to update order" }
   }
 }
 
