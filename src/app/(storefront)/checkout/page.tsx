@@ -10,7 +10,10 @@ import { getPromotionByCodeAction } from '@/actions/promotions'
 import { calculateTaxAction } from '@/actions/tax'
 import { showToast } from "@/components/ui/Toast"
 import { useState, useEffect } from "react"
-import { AlertCircle, CheckCircle, X } from "lucide-react"
+import { AlertCircle, CheckCircle, X, CreditCard, Banknote } from "lucide-react"
+import { getPaymentMethodsAction } from "@/actions/public-settings"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { Label } from "@/components/ui/label"
 
 export default function CheckoutPage() {
   const { items, clearCart } = useCart()
@@ -37,6 +40,25 @@ export default function CheckoutPage() {
   const [calculatingTax, setCalculatingTax] = useState(false)
 
   const [shippingTax, setShippingTax] = useState(0)
+
+  // Payment State
+  const [paymentMethods, setPaymentMethods] = useState<{ cashOnDeliveryEnabled: boolean, stripeEnabled: boolean }>({ cashOnDeliveryEnabled: false, stripeEnabled: false })
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string>('')
+
+  useEffect(() => {
+    async function loadSettings() {
+      try {
+        const methods = await getPaymentMethodsAction()
+        setPaymentMethods(methods)
+        // Auto-select if only one is available
+        if (methods.cashOnDeliveryEnabled && !methods.stripeEnabled) setSelectedPaymentMethod('cod')
+        if (!methods.cashOnDeliveryEnabled && methods.stripeEnabled) setSelectedPaymentMethod('stripe')
+      } catch (e) {
+        console.error("Failed to load payment methods", e)
+      }
+    }
+    loadSettings()
+  }, [])
 
   useEffect(() => {
     async function loadAddresses() {
@@ -242,7 +264,9 @@ export default function CheckoutPage() {
           phone: selectedBillingAddress.phone
         } : undefined),
         shippingMethodId: selectedShippingRate?.methodId,
-        shippingCost: shippingCost
+        shippingMethodId: selectedShippingRate?.methodId,
+        shippingCost: shippingCost,
+        paymentMethod: selectedPaymentMethod // Pass to backend
       }
 
       const orderId = await createOrderAction(orderData)
@@ -410,116 +434,162 @@ export default function CheckoutPage() {
           </div>
         </div>
 
-        {/* Shipping Info */}
-        <div className="rounded-lg border bg-card p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="font-semibold">Shipping Information</h2>
-            <Button variant="ghost" size="sm" asChild>
-              <a href="/account/addresses" target="_blank">Change</a>
-            </Button>
-          </div>
-          <div className="space-y-3 text-sm">
-            <div>
-              <p className="text-muted-foreground mb-1">Email</p>
-              <p className="font-medium">{user.email}</p>
+        {/* Combined Shipping & Billing Info */}
+        <div className="rounded-lg border bg-card overflow-hidden">
+          {/* Shipping Section */}
+          <div className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-semibold">Shipping Information</h2>
+              <Button variant="ghost" size="sm" asChild>
+                <a href="/account/addresses" target="_blank">Change</a>
+              </Button>
+            </div>
+            <div className="space-y-3 text-sm">
+              <div>
+                <p className="text-muted-foreground mb-1">Email</p>
+                <p className="font-medium">{user.email}</p>
+              </div>
+
+              <div>
+                <p className="text-muted-foreground mb-1">Shipping Address</p>
+                {selectedAddress ? (
+                  <div className="font-medium">
+                    <p>{selectedAddress.firstName} {selectedAddress.lastName}</p>
+                    <p>{selectedAddress.address1}</p>
+                    {selectedAddress.address2 && <p>{selectedAddress.address2}</p>}
+                    <p>{selectedAddress.city}, {selectedAddress.province} {selectedAddress.zip}</p>
+                    <p>{selectedAddress.country}</p>
+                    {selectedAddress.phone && <p className="mt-1 text-muted-foreground">{selectedAddress.phone}</p>}
+                  </div>
+                ) : (
+                  <div className="text-muted-foreground">
+                    No address found. <a href="/account/addresses" className="text-primary hover:underline">Add a shipping address</a>
+                  </div>
+                )}
+              </div>
             </div>
 
-            <div>
-              <p className="text-muted-foreground mb-1">Shipping Address</p>
-              {selectedAddress ? (
-                <div className="font-medium">
-                  <p>{selectedAddress.firstName} {selectedAddress.lastName}</p>
-                  <p>{selectedAddress.address1}</p>
-                  {selectedAddress.address2 && <p>{selectedAddress.address2}</p>}
-                  <p>{selectedAddress.city}, {selectedAddress.province} {selectedAddress.zip}</p>
-                  <p>{selectedAddress.country}</p>
-                  {selectedAddress.phone && <p className="mt-1 text-muted-foreground">{selectedAddress.phone}</p>}
+            {/* Shipping Methods Selection inside Shipping Section */}
+            {shippingRates.length > 0 && (
+              <div className="mt-6 pt-4 border-t">
+                <h3 className="font-semibold mb-3">Shipping Method</h3>
+                <div className="space-y-3">
+                  {shippingRates.map((rate) => (
+                    <div
+                      key={rate.rateId}
+                      className={`border p-3 rounded-lg flex items-center justify-between cursor-pointer ${selectedShippingRate?.rateId === rate.rateId ? 'border-primary bg-primary/5' : 'hover:border-gray-300'}`}
+                      onClick={() => setSelectedShippingRate(rate)}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className={`h-4 w-4 rounded-full border flex items-center justify-center ${selectedShippingRate?.rateId === rate.rateId ? 'border-primary' : 'border-gray-300'}`}>
+                          {selectedShippingRate?.rateId === rate.rateId && <div className="h-2 w-2 rounded-full bg-primary" />}
+                        </div>
+                        <div>
+                          <p className="font-medium">{rate.label || rate.methodName}</p>
+                          {rate.description && <p className="text-xs text-muted-foreground">{rate.description}</p>}
+                        </div>
+                      </div>
+                      <span className="font-semibold">{Number(rate.cost) === 0 ? 'Free' : `$${Number(rate.cost).toFixed(2)}`}</span>
+                    </div>
+                  ))}
                 </div>
-              ) : (
-                <div className="text-muted-foreground">
-                  No address found. <a href="/account/addresses" className="text-primary hover:underline">Add a shipping address</a>
+              </div>
+            )}
+          </div>
+
+          {/* Divider */}
+          <div className="border-t" />
+
+          {/* Billing Section */}
+          <div className="p-6 bg-muted/5">
+            <h2 className="font-semibold mb-4">Billing Address</h2>
+            <div className="space-y-4">
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="sameAsShipping"
+                  checked={sameAsShipping}
+                  onChange={(e) => setSameAsShipping(e.target.checked)}
+                  className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                />
+                <label htmlFor="sameAsShipping" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer">
+                  Same as shipping address
+                </label>
+              </div>
+
+              {!sameAsShipping && (
+                <div className="space-y-3 pt-2">
+                  <label className="text-sm font-medium">Select Billing Address</label>
+                  {addresses.length > 0 ? (
+                    <div className="grid gap-3">
+                      {addresses.map((addr) => (
+                        <div
+                          key={addr.id}
+                          className={`border p-3 rounded-md cursor-pointer flex items-start gap-3 ${selectedBillingAddress?.id === addr.id ? 'border-primary bg-primary/5' : 'hover:border-gray-300'}`}
+                          onClick={() => setSelectedBillingAddress(addr)}
+                        >
+                          <div className={`mt-1 h-4 w-4 rounded-full border flex items-center justify-center ${selectedBillingAddress?.id === addr.id ? 'border-primary' : 'border-gray-300'}`}>
+                            {selectedBillingAddress?.id === addr.id && <div className="h-2 w-2 rounded-full bg-primary" />}
+                          </div>
+                          <div className="text-sm">
+                            <p className="font-medium">{addr.firstName} {addr.lastName}</p>
+                            <p className="text-muted-foreground">{addr.address1}, {addr.city}</p>
+                          </div>
+                        </div>
+                      ))}
+                      <Button variant="outline" size="sm" asChild className="w-full">
+                        <a href="/account/addresses" target="_blank">Add New Address</a>
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="text-sm text-muted-foreground">
+                      No addresses found. <a href="/account/addresses" className="text-primary hover:underline" target="_blank">Add one here</a>.
+                    </div>
+                  )}
                 </div>
               )}
             </div>
           </div>
         </div>
 
-
-        {/* Shipping Methods Selection */}
-        {shippingRates.length > 0 && (
-          <div className="mt-6 border-t pt-4">
-            <h3 className="font-semibold mb-3">Shipping Method</h3>
-            <div className="space-y-3">
-              {shippingRates.map((rate) => (
-                <div
-                  key={rate.rateId}
-                  className={`border p-3 rounded-lg flex items-center justify-between cursor-pointer ${selectedShippingRate?.rateId === rate.rateId ? 'border-primary bg-primary/5' : 'hover:border-gray-300'}`}
-                  onClick={() => setSelectedShippingRate(rate)}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className={`h-4 w-4 rounded-full border flex items-center justify-center ${selectedShippingRate?.rateId === rate.rateId ? 'border-primary' : 'border-gray-300'}`}>
-                      {selectedShippingRate?.rateId === rate.rateId && <div className="h-2 w-2 rounded-full bg-primary" />}
-                    </div>
-                    <div>
-                      <p className="font-medium">{rate.label || rate.methodName}</p>
-                      {rate.description && <p className="text-xs text-muted-foreground">{rate.description}</p>}
-                    </div>
-                  </div>
-                  <span className="font-semibold">{Number(rate.cost) === 0 ? 'Free' : `$${Number(rate.cost).toFixed(2)}`}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-
-        {/* Billing Address */}
+        {/* Payment Method Selection */}
         <div className="rounded-lg border bg-card p-6">
-          <h2 className="font-semibold mb-4">Billing Address</h2>
+          <h2 className="font-semibold mb-4">Payment Method</h2>
           <div className="space-y-4">
-            <div className="flex items-center space-x-2">
-              <input
-                type="checkbox"
-                id="sameAsShipping"
-                checked={sameAsShipping}
-                onChange={(e) => setSameAsShipping(e.target.checked)}
-                className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
-              />
-              <label htmlFor="sameAsShipping" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                Same as shipping address
-              </label>
-            </div>
-
-            {!sameAsShipping && (
-              <div className="space-y-3">
-                <label className="text-sm font-medium">Select Billing Address</label>
-                {addresses.length > 0 ? (
-                  <div className="grid gap-3">
-                    {addresses.map((addr) => (
-                      <div
-                        key={addr.id}
-                        className={`border p-3 rounded-md cursor-pointer flex items-start gap-3 ${selectedBillingAddress?.id === addr.id ? 'border-primary bg-primary/5' : 'hover:border-gray-300'}`}
-                        onClick={() => setSelectedBillingAddress(addr)}
-                      >
-                        <div className={`mt-1 h-4 w-4 rounded-full border flex items-center justify-center ${selectedBillingAddress?.id === addr.id ? 'border-primary' : 'border-gray-300'}`}>
-                          {selectedBillingAddress?.id === addr.id && <div className="h-2 w-2 rounded-full bg-primary" />}
-                        </div>
-                        <div className="text-sm">
-                          <p className="font-medium">{addr.firstName} {addr.lastName}</p>
-                          <p className="text-muted-foreground">{addr.address1}, {addr.city}</p>
-                        </div>
-                      </div>
-                    ))}
-                    <Button variant="outline" size="sm" asChild className="w-full">
-                      <a href="/account/addresses" target="_blank">Add New Address</a>
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="text-sm text-muted-foreground">
-                    No addresses found. <a href="/account/addresses" className="text-primary hover:underline" target="_blank">Add one here</a>.
-                  </div>
-                )}
-              </div>
+            <RadioGroup value={selectedPaymentMethod} onValueChange={setSelectedPaymentMethod}>
+              {paymentMethods.cashOnDeliveryEnabled && (
+                <div
+                  className={`flex items-center space-x-3 border p-4 rounded-lg cursor-pointer transition-colors ${selectedPaymentMethod === 'cod' ? 'border-primary bg-primary/5' : 'hover:border-gray-300'}`}
+                  onClick={() => setSelectedPaymentMethod('cod')}
+                >
+                  <RadioGroupItem value="cod" id="cod" />
+                  <Label htmlFor="cod" className="flex items-center gap-3 cursor-pointer flex-1">
+                    <Banknote className="h-5 w-5 text-muted-foreground" />
+                    <div className="space-y-1">
+                      <p className="font-medium">Cash on Delivery</p>
+                      <p className="text-xs text-muted-foreground">Pay with cash upon delivery</p>
+                    </div>
+                  </Label>
+                </div>
+              )}
+              {paymentMethods.stripeEnabled && (
+                <div
+                  className={`flex items-center space-x-3 border p-4 rounded-lg cursor-pointer transition-colors ${selectedPaymentMethod === 'stripe' ? 'border-primary bg-primary/5' : 'hover:border-gray-300'}`}
+                  onClick={() => setSelectedPaymentMethod('stripe')}
+                >
+                  <RadioGroupItem value="stripe" id="stripe" />
+                  <Label htmlFor="stripe" className="flex items-center gap-3 cursor-pointer flex-1">
+                    <CreditCard className="h-5 w-5 text-muted-foreground" />
+                    <div className="space-y-1">
+                      <p className="font-medium">Credit/Debit Card (Stripe)</p>
+                      <p className="text-xs text-muted-foreground">Secure payment via Stripe</p>
+                    </div>
+                  </Label>
+                </div>
+              )}
+            </RadioGroup>
+            {!paymentMethods.cashOnDeliveryEnabled && !paymentMethods.stripeEnabled && (
+              <p className="text-sm text-yellow-600">No payment methods are currently enabled.</p>
             )}
           </div>
         </div>
@@ -539,7 +609,7 @@ export default function CheckoutPage() {
           </Button>
           <Button
             onClick={handlePlaceOrder}
-            disabled={items.length === 0 || isPlacingOrder || (!selectedAddress) || (!sameAsShipping && !selectedBillingAddress) || (shippingRates.length > 0 && !selectedShippingRate)}
+            disabled={items.length === 0 || isPlacingOrder || (!selectedAddress) || (!sameAsShipping && !selectedBillingAddress) || (shippingRates.length > 0 && !selectedShippingRate) || !selectedPaymentMethod}
           >
             {isPlacingOrder ? 'Placing Order...' : 'Place Order'}
           </Button>

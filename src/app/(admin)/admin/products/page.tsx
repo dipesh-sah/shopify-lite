@@ -4,12 +4,7 @@ import { Plus, ChevronDown } from "lucide-react"
 import { getProductsAction } from "@/actions/products"
 import { ProductsTable } from "@/components/admin/ProductsTable"
 import { Button } from "@/components/ui/button"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+import { ProductActions } from "./ProductActions"
 
 interface AdminProductsPageProps {
   searchParams: { [key: string]: string | string[] | undefined }
@@ -46,23 +41,7 @@ export default async function AdminProductsPage({ searchParams }: AdminProductsP
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Products</h1>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm">
-            Export
-          </Button>
-          <Button variant="outline" size="sm">
-            Import
-          </Button>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="gap-1">
-                More actions <ChevronDown className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem>Sync inventory</DropdownMenuItem>
-              <DropdownMenuItem>Archive selected</DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <ProductActions />
 
           <Button size="sm" asChild>
             <Link href="/admin/products/new">
@@ -83,6 +62,6 @@ export default async function AdminProductsPage({ searchParams }: AdminProductsP
           currentPage={page}
         />
       </React.Suspense>
-    </div>
+    </div >
   )
 }

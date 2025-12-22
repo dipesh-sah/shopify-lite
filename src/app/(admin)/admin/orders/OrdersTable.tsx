@@ -407,7 +407,7 @@ export default function OrdersTable({
                         </td>
                         <th scope="row" className="px-4 py-4 font-bold text-gray-900 whitespace-nowrap">
                           <Link href={`/admin/orders/${order.id}`} className="hover:underline">
-                            #{order.id.slice(-6).toUpperCase()}
+                            #{order.orderNumber}
                           </Link>
                         </th>
                         <td className="px-4 py-4 text-gray-500">

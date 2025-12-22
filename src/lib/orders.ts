@@ -2,6 +2,8 @@ import { execute, query, pool } from './db';
 import { v4 as uuidv4 } from 'uuid';
 import { generateNextNumber } from './number-ranges';
 import { calculateOrderTax } from './tax';
+import { sendEmail } from './email';
+import { generateOrderConfirmationEmail } from './email-templates';
 
 export async function createOrderMySQL(data: {
   userId: string;
@@ -281,6 +283,26 @@ export async function createOrderMySQL(data: {
     }
 
     await connection.commit();
+
+    // 5. Send Order Confirmation Email (Fire and forget, or await?)
+    // Best to await to ensure it's sent, or at least trigger it.
+    if (data.customerEmail) {
+      const emailHtml = generateOrderConfirmationEmail({
+        id: orderId,
+        orderNumber: orderNumber as string,
+        customerFirstName: data.shippingAddress?.firstName || "Customer",
+        total: finalTotal + (data.shippingCost || 0),
+        items: data.items.map(i => ({
+          title: i.title || "Product",
+          quantity: i.quantity,
+          price: i.price
+        })),
+        shippingAddress: data.shippingAddress
+      });
+      // Don't block the response for email, but log if error
+      sendEmail(data.customerEmail, `Order Confirmation #${orderNumber}`, emailHtml).catch(e => console.error("Failed to send email:", e));
+    }
+
     return orderId;
   } catch (error) {
     await connection.rollback();
@@ -291,7 +313,12 @@ export async function createOrderMySQL(data: {
 }
 
 export async function getOrderMySQL(id: string) {
-  const orders = await query(`SELECT * FROM orders WHERE id = ?`, [id]);
+  const orders = await query(`
+    SELECT o.*, sm.name as shipping_method_name, sm.description as shipping_method_description 
+    FROM orders o 
+    LEFT JOIN shipping_methods sm ON o.shipping_method_id = sm.id 
+    WHERE o.id = ?
+  `, [id]);
   if (orders.length === 0) return null;
 
   const items = await query(`SELECT * FROM order_items WHERE order_id = ?`, [id]);
@@ -348,7 +375,10 @@ export async function getOrderMySQL(id: string) {
     total: order.total,
     status: order.status,
     paymentStatus: order.payment_status,
+    paymentStatus: order.payment_status,
     createdAt: order.created_at,
+    taxTotal: order.tax_total,
+    taxBreakdown: order.tax_breakdown,
     items: items.map((item: any) => ({
       id: item.id,
       productId: item.product_id,

@@ -467,8 +467,8 @@ export function CustomerForm({ initialData, isEditing = false, orders = [] }: Cu
             />
           </div>
         </div>
-      </div>
-    </form>
+
+      </form>
     </Form >
   )
 }

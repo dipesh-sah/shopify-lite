@@ -49,6 +49,17 @@ import { cacheable } from "@/lib/cache"
 //   { revalidate: 60, tags: ['products'] }
 // )
 
+
+export async function getProductBySlugAction(slug: string) {
+  try {
+    const product = await db.getProductBySlug(slug)
+    return product
+  } catch (error) {
+    console.error("Error getting product by slug:", error)
+    return null
+  }
+}
+
 export async function getProductAction(id: string) {
   try {
     // return await getCachedProduct(id)
@@ -57,6 +68,16 @@ export async function getProductAction(id: string) {
   } catch (error) {
     console.error("Error getting product:", error)
     return null
+  }
+}
+
+export async function getRelatedProductsAction(productId: string, limit: number = 4) {
+  try {
+    const products = await db.getRelatedProducts(productId, limit)
+    return products
+  } catch (error) {
+    console.error("Error getting related products:", error)
+    return []
   }
 }
 
@@ -152,6 +173,161 @@ export async function deleteProductAction(id: string) {
 export async function getMediaAction() {
   // Stub: returning empty array as no media lib implementation exists yet
   return []
+}
+
+export async function exportProductsAction() {
+  try {
+    const { products } = await db.getProducts({ limit: 10000 }); // Fetch all (or many)
+
+    const header = [
+      'ID',
+      'Title',
+      'Description',
+      'Status',
+      'Price',
+      'Compare At Price',
+      'Cost Per Item',
+      'SKU',
+      'Barcode',
+      'Quantity',
+      'Weight',
+      'Weight Unit',
+      'Vendor',
+      'Product Type',
+      'Tags'
+    ];
+
+    const csvRows = products.map((p: any) => {
+      const escape = (text: string | null | undefined) => {
+        if (!text) return '';
+        const str = String(text);
+        if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+          return `"${str.replace(/"/g, '""')}"`;
+        }
+        return str;
+      };
+
+      return [
+        p.id,
+        escape(p.title),
+        escape(p.description),
+        p.status,
+        p.price,
+        p.compareAtPrice || '',
+        p.costPerItem || '',
+        escape(p.sku),
+        escape(p.barcode),
+        p.quantity,
+        p.weight || '',
+        p.weightUnit || '',
+        escape(p.vendor),
+        escape(p.productType),
+        escape(p.tags?.join(', '))
+      ].join(',');
+    });
+
+    const csvContent = [header.join(','), ...csvRows].join('\n');
+    return { csv: csvContent, filename: `products-export-${new Date().toISOString().split('T')[0]}.csv` };
+
+  } catch (error) {
+    console.error("Export Products Error:", error);
+    return { error: "Failed to export products" };
+  }
+}
+
+export async function importProductsAction(formData: FormData) {
+  try {
+    const file = formData.get('file') as File;
+    if (!file) throw new Error("No file uploaded");
+
+    const text = await file.text();
+    const [headerLine, ...lines] = text.split('\n');
+
+    if (!headerLine) throw new Error("Empty CSV file");
+
+    // Simple CSV parser
+    let successCount = 0;
+    let errors: string[] = [];
+
+    const headers = headerLine.split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+
+    // Helper to split CSV line respecting quotes
+    const splitCsv = (line: string) => {
+      const matches = [];
+      let currentMatch = '';
+      let inQuote = false;
+      for (let i = 0; i < line.length; i++) {
+        const char = line[i];
+        if (char === '"') {
+          if (inQuote && line[i + 1] === '"') {
+            currentMatch += '"';
+            i++;
+          } else {
+            inQuote = !inQuote;
+          }
+        } else if (char === ',' && !inQuote) {
+          matches.push(currentMatch);
+          currentMatch = '';
+        } else {
+          currentMatch += char;
+        }
+      }
+      matches.push(currentMatch);
+      return matches;
+    };
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line) continue;
+
+      try {
+        const values = splitCsv(line);
+        const row: any = {};
+
+        headers.forEach((header, index) => {
+          let val = values[index]?.trim() || '';
+          if (val.startsWith('"') && val.endsWith('"')) val = val.slice(1, -1).replace(/""/g, '"');
+          row[header] = val;
+        });
+
+        // Map CSV columns to Product Data
+        const productData: any = {
+          title: row['Title'],
+          description: row['Description'],
+          status: row['Status'] || 'draft',
+          price: parseFloat(row['Price']) || 0,
+          compareAtPrice: row['Compare At Price'] ? parseFloat(row['Compare At Price']) : undefined,
+          costPerItem: row['Cost Per Item'] ? parseFloat(row['Cost Per Item']) : undefined,
+          sku: row['SKU'],
+          barcode: row['Barcode'],
+          quantity: parseInt(row['Quantity']) || 0,
+          weight: row['Weight'] ? parseFloat(row['Weight']) : 0,
+          weightUnit: row['Weight Unit'] || 'kg',
+          vendor: row['Vendor'],
+          productType: row['Product Type'],
+          tags: row['Tags'] ? row['Tags'].split(',').map((t: string) => t.trim()) : []
+        };
+
+        if (!productData.title) throw new Error("Title is required");
+
+        // Generate slug
+        productData.slug = productData.title.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '-' + Math.random().toString(36).substring(7);
+
+        await db.createProduct(productData);
+        successCount++;
+
+      } catch (e: any) {
+        errors.push(`Row ${i + 1}: ${e.message}`);
+      }
+    }
+
+    revalidatePath('/admin/products');
+    return { success: true, count: successCount, errors };
+
+  } catch (error) {
+    console.error("Import Products Error:", error);
+    return { success: false, error: "Failed to import products" };
+  }
 }
 
 function parseProductFormData(formData: FormData) {

@@ -14,6 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'),
   title: "Shopify Lite - E-commerce Platform",
   description: "Modern e-commerce platform built with Next.js and MySQL",
 };

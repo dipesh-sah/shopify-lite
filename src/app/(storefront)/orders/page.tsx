@@ -9,6 +9,7 @@ import { ArrowLeft, Package, CheckCircle, Clock, AlertCircle } from 'lucide-reac
 
 interface Order {
   id: string
+  orderNumber: string
   total: number
   status: string
   isPaid: boolean
@@ -117,17 +118,17 @@ export default function OrdersPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="container px-4 md:px-6 py-8 md:py-12">
+    <div className="min-h-screen bg-white">
+      <div className="container px-4 md:px-6 py-8 md:py-12 max-w-5xl mx-auto">
         {/* Header */}
         <div className="flex items-center gap-4 mb-8">
           <Link
             href="/account"
-            className="inline-flex items-center justify-center rounded-md h-10 w-10 hover:bg-accent transition-colors"
+            className="inline-flex items-center justify-center rounded-md h-10 w-10 hover:bg-gray-100 transition-colors"
           >
             <ArrowLeft className="w-5 h-5" />
           </Link>
-          <h1 className="text-3xl md:text-4xl font-bold">My Orders</h1>
+          <h1 className="text-3xl font-bold text-gray-900">My Orders</h1>
         </div>
 
         {error && (
@@ -145,7 +146,7 @@ export default function OrdersPage() {
             </p>
             <Link
               href="/products"
-              className="inline-flex h-10 items-center justify-center rounded-md bg-primary px-8 text-sm font-medium text-primary-foreground shadow transition-colors hover:bg-primary/90"
+              className="inline-flex h-10 items-center justify-center rounded-md bg-black px-8 text-sm font-medium text-white shadow transition-colors hover:bg-gray-800"
             >
               Continue Shopping
             </Link>
@@ -153,38 +154,37 @@ export default function OrdersPage() {
         ) : (
           <div className="space-y-6">
             {orders.map((order) => (
-              <div key={order.id} className="rounded-lg border bg-card shadow-sm hover:shadow-md transition-shadow">
-                {/* Order Header */}
-                <div className="p-6 border-b bg-muted/30">
-                  <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                    <div>
-                      <p className="text-sm text-muted-foreground mb-1">Order ID</p>
-                      <p className="font-mono text-lg font-semibold">#{order.id.slice(-12)}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm text-muted-foreground mb-1">Order Date</p>
-                      <p className="font-medium">
-                        {order.createdAt
-                          ? new Date(order.createdAt).toLocaleDateString('en-US', {
-                            year: 'numeric',
-                            month: 'short',
-                            day: 'numeric',
-                          })
-                          : 'N/A'}
-                      </p>
-                    </div>
+              <div key={order.id} className="rounded-xl border border-gray-200 bg-white shadow-sm hover:shadow-md transition-shadow">
+
+                {/* 1. Header Row (ID & Date) */}
+                <div className="p-6 pb-4 flex flex-col md:flex-row md:items-start md:justify-between gap-4 border-b border-gray-100">
+                  <div>
+                    <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Order ID</h3>
+                    <p className="text-base font-bold text-gray-900">#{order.orderNumber}</p>
+                  </div>
+                  <div className="text-left md:text-right">
+                    <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Order Date</h3>
+                    <p className="text-base font-medium text-gray-900">
+                      {order.createdAt
+                        ? new Date(order.createdAt).toLocaleDateString('en-US', {
+                          year: 'numeric',
+                          month: 'short',
+                          day: 'numeric',
+                        })
+                        : 'N/A'}
+                    </p>
                   </div>
                 </div>
 
-                {/* Order Items */}
-                <div className="p-6 border-b">
-                  <h3 className="font-semibold mb-4 text-sm text-muted-foreground uppercase">Order Items</h3>
-                  <div className="space-y-3">
+                {/* 2. Items Section */}
+                <div className="p-6 py-4 border-b border-gray-100">
+                  <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-4">Order Items</h3>
+                  <div className="space-y-4">
                     {order.items && order.items.length > 0 ? (
                       order.items.map((item, index) => (
-                        <div key={index} className="flex gap-4 items-center text-sm py-2">
+                        <div key={index} className="flex gap-4 items-center">
                           {/* Image */}
-                          <div className="h-12 w-12 flex-shrink-0 overflow-hidden rounded-md border bg-muted">
+                          <div className="h-14 w-14 flex-shrink-0 overflow-hidden rounded-md border border-gray-200 bg-gray-50">
                             {item.image ? (
                               <img
                                 src={item.image}
@@ -192,53 +192,75 @@ export default function OrdersPage() {
                                 className="h-full w-full object-cover"
                               />
                             ) : (
-                              <div className="flex h-full w-full items-center justify-center bg-muted">
-                                <Package className="h-4 w-4 text-muted-foreground" />
+                              <div className="flex h-full w-full items-center justify-center bg-gray-100">
+                                <Package className="h-5 w-5 text-gray-400" />
                               </div>
                             )}
                           </div>
 
-                          {/* Details */}
-                          <div className="flex-1">
-                            <p className="font-medium line-clamp-1">{item.name || `Product ID: ${item.productId}`}</p>
-                            <p className="text-muted-foreground text-xs">Qty: {item.quantity}</p>
+                          {/* Item Details */}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-gray-900 truncate">
+                              {item.name || `Product ID: ${item.productId}`}
+                            </p>
+                            <p className="text-xs text-gray-500 mt-1">Qty: {item.quantity}</p>
                           </div>
-                          <p className="font-semibold">${Number(item.price * item.quantity).toFixed(2)}</p>
+
+                          {/* Price */}
+                          <p className="text-sm font-semibold text-gray-900">
+                            ${Number(item.price * item.quantity).toFixed(2)}
+                          </p>
                         </div>
                       ))
                     ) : (
-                      <p className="text-muted-foreground text-sm">No items in this order</p>
+                      <p className="text-gray-500 text-sm italic">No items details available</p>
                     )}
                   </div>
                 </div>
 
-                {/* Order Status & Total */}
-                <div className="p-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                  <div className="flex items-center gap-3">
-                    {getStatusIcon(order.status)}
-                    <div>
-                      <p className="text-sm text-muted-foreground mb-1">Status</p>
-                      <span className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium border ${getStatusColor(order.status)}`}>
-                        {order.isPaid && <CheckCircle className="w-4 h-4" />}
-                        {order.status}
-                      </span>
-                    </div>
+                {/* 3. Footer Section (Status, Total, Action) */}
+                <div className="p-6 pt-4 flex flex-col sm:flex-row items-center justify-between gap-6">
+
+                  {/* Status */}
+                  <div className="w-full sm:w-auto">
+                    <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2 sm:mb-1">Status</h3>
+                    <span
+                      className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold capitalize border ${order.status.toLowerCase() === 'delivered' ? 'bg-green-50 text-green-700 border-green-200' :
+                          order.status.toLowerCase() === 'pending' ? 'bg-yellow-50 text-yellow-700 border-yellow-200' :
+                            order.status.toLowerCase() === 'cancelled' ? 'bg-red-50 text-red-700 border-red-200' :
+                              'bg-blue-50 text-blue-700 border-blue-200'
+                        }`}
+                    >
+                      {getStatusIcon(order.status)}
+                      {order.status}
+                    </span>
                   </div>
-                  <div className="text-right">
-                    <p className="text-sm text-muted-foreground mb-1">Total</p>
-                    <p className="text-2xl font-bold text-primary">${Number(order.total).toFixed(2)}</p>
+
+                  {/* Total */}
+                  <div className="w-full sm:w-auto text-left sm:text-right">
+                    <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Total</h3>
+                    <p className="text-xl font-bold text-gray-900">${Number(order.total).toFixed(2)}</p>
                   </div>
                 </div>
 
-                {/* View Details Button */}
-                <div className="p-6 pt-0">
+                {/* Action Button (Separate Row or inline? Image implies separate or bottom left) 
+                   The image shows "View Details" button on the bottom left, below status. 
+                   Let's put it in a separate padding block or vertically stacked if needed. 
+                   Actually looking closely at the image: 
+                   Row 1: ID -------- Date
+                   Row 2: Items
+                   Row 3: Status (Left) ----- Total (Right)
+                   Row 4: View Details Button (Left)
+                */}
+                <div className="px-6 pb-6">
                   <Link
                     href={`/orders/${order.id}`}
-                    className="inline-flex h-10 items-center justify-center rounded-md border border-input bg-background px-6 text-sm font-medium shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground"
+                    className="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-5 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 transition-colors"
                   >
                     View Details
                   </Link>
                 </div>
+
               </div>
             ))}
           </div>

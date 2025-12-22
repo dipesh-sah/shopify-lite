@@ -10,8 +10,12 @@ declare global {
   var mysqlPool: mysql.Pool | undefined;
 }
 
-export const pool = global.mysqlPool || mysql.createPool({
-  uri: process.env.DATABASE_URL,
+// Parse DATABASE_URL manually to ensure compatibility
+// Format: mysql://user:password@host:port/database
+const dbUrl = process.env.DATABASE_URL;
+const match = dbUrl.match(/mysql:\/\/([^:]+)(?::([^@]*))?@([^:]+)(?::(\d+))?\/([^?]+)/);
+
+let connectionConfig: any = {
   waitForConnections: true,
   connectionLimit: 20,
   maxIdle: 20,
@@ -19,7 +23,20 @@ export const pool = global.mysqlPool || mysql.createPool({
   queueLimit: 0,
   enableKeepAlive: true,
   keepAliveInitialDelay: 0
-});
+};
+
+if (match) {
+  connectionConfig.user = match[1];
+  connectionConfig.password = match[2] || '';
+  connectionConfig.host = match[3];
+  connectionConfig.port = match[4] ? parseInt(match[4]) : 3306;
+  connectionConfig.database = match[5];
+} else {
+  // Fallback or just pass URI if regex fails (though unlikely for standard format)
+  connectionConfig.uri = dbUrl;
+}
+
+export const pool = global.mysqlPool || mysql.createPool(connectionConfig);
 
 if (process.env.NODE_ENV !== 'production') {
   global.mysqlPool = pool;

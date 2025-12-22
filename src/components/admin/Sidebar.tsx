@@ -56,7 +56,6 @@ const sidebarItems: SidebarItem[] = [
   { icon: Star, label: "Reviews", href: "/admin/reviews" },
 ]
 
-import { SettingsModal } from "./SettingsModal"
 
 import { logoutAction } from "@/actions/auth"
 import { useRouter } from "next/navigation"
@@ -66,7 +65,6 @@ interface SidebarProps extends React.HTMLAttributes<HTMLDivElement> { }
 export function AdminSidebar({ className }: SidebarProps) {
   const pathname = usePathname()
   const router = useRouter()
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false)
 
   const handleLogout = async () => {
     await logoutAction()
@@ -148,15 +146,16 @@ export function AdminSidebar({ className }: SidebarProps) {
           <Store className="h-4 w-4" />
           <span>Visit Website</span>
         </a>
-        <button
-          onClick={() => setIsSettingsOpen(true)}
+        <Link
+          href="/admin/settings"
           className={cn(
-            "w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors text-muted-foreground hover:bg-muted/50 hover:text-primary"
+            "w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors text-muted-foreground hover:bg-muted/50 hover:text-primary",
+            pathname === "/admin/settings" && "bg-primary/10 text-primary"
           )}
         >
           <Settings className="h-4 w-4" />
           <span>Settings</span>
-        </button>
+        </Link>
         <button
           onClick={handleLogout}
           className={cn(
@@ -168,7 +167,6 @@ export function AdminSidebar({ className }: SidebarProps) {
         </button>
       </div>
 
-      {isSettingsOpen && <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />}
     </aside>
   )
 }

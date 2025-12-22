@@ -145,6 +145,15 @@ export async function getMetaobjectDefinitionsAction() {
   }
 }
 
+export async function getMetaobjectDefinitionAction(type: string) {
+  try {
+    const def = await getMetaobjectDefinition(type);
+    return { success: true, data: def };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
 export async function updateMetaobjectDefinitionAction(id: number, data: any) {
   try {
     await updateMetaobjectDefinition(id, data);

@@ -12,6 +12,7 @@ import { updateOrderAction } from '@/actions/orders'
 
 interface Order {
   id: string
+  orderNumber: string
   total: number
   status: string
   isPaid: boolean
@@ -228,7 +229,7 @@ export default function AdminOrderDetailsPage() {
           </Link>
           <div>
             <h1 className="text-2xl font-bold flex items-center gap-2">
-              Order #{order.id.slice(-6).toUpperCase()}
+              Order #{order.orderNumber}
               <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${getStatusColor(order.status)}`}>
                 {order.status.toUpperCase()}
               </span>

@@ -7,10 +7,15 @@ export async function getSettings(category: string = 'general') {
   if (rows.length > 0) {
     const settings: any = {};
     rows.forEach((row: any) => {
-      try {
-        settings[row.setting_key] = JSON.parse(row.setting_value);
-      } catch (e) {
-        settings[row.setting_key] = row.setting_value;
+      const val = row.setting_value;
+      if (val === 'true' || val === '1') settings[row.setting_key] = true;
+      else if (val === 'false' || val === '0') settings[row.setting_key] = false;
+      else {
+        try {
+          settings[row.setting_key] = JSON.parse(val);
+        } catch (e) {
+          settings[row.setting_key] = val;
+        }
       }
     });
     return settings;

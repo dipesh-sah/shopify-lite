@@ -180,18 +180,21 @@ export async function calculateOrderTax(
   // 2. Filter Rules by Address
   const applicableRules = allRules.filter(rule => {
     // Country Check
-    const ruleCountries = rule.country_code ? rule.country_code.split(',').map((c: string) => c.trim().toUpperCase()) : ['*'];
+    const ruleCountries = (rule.country_code && rule.country_code.trim() !== '')
+      ? rule.country_code.split(',').map((c: string) => c.trim().toUpperCase())
+      : ['*'];
+
     if (!ruleCountries.includes('*') && !ruleCountries.includes(address.country.toUpperCase())) return false;
 
     // State Check
-    if (rule.state_code) {
+    if (rule.state_code && rule.state_code.trim() !== '') {
       const ruleStates = rule.state_code.split(',').map((s: string) => s.trim().toUpperCase());
       const userState = (address.state || '').toUpperCase();
       if (!ruleStates.includes('*') && !ruleStates.includes(userState)) return false;
     }
 
     // Zip Check (Exact, Wildcard, or List)
-    if (rule.zip_code) {
+    if (rule.zip_code && rule.zip_code.trim() !== '') {
       const ruleZips = rule.zip_code.split(',').map((z: string) => z.trim());
       // Check if ANY zip matches
       const match = ruleZips.some((rZip: string) => {

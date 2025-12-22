@@ -2,6 +2,38 @@ import { getCollectionBySlug } from '@/lib/collections';
 import { getProducts } from '@/lib/products';
 import { ProductCard } from '@/components/storefront/ProductCard';
 
+import { getSeoMetadata } from '@/lib/seo';
+import { Metadata, ResolvingMetadata } from 'next';
+
+export async function generateMetadata(
+  { params }: { params: Promise<{ slug: string }> },
+  parent: ResolvingMetadata
+): Promise<Metadata> {
+  const { slug } = await params;
+  const collection = await getCollectionBySlug(slug);
+
+  if (!collection) {
+    return {
+      title: 'Collection Not Found',
+    };
+  }
+
+  const seo = await getSeoMetadata('category', collection.id);
+
+  return {
+    title: seo?.title || collection.seoTitle || collection.name,
+    description: seo?.description || collection.seoDescription || collection.description,
+    openGraph: {
+      title: seo?.title || collection.seoTitle || collection.name,
+      description: seo?.description || collection.seoDescription || collection.description,
+      images: collection.image ? [collection.image] : [],
+    },
+    alternates: {
+      canonical: seo?.canonicalUrl || `${process.env.NEXT_PUBLIC_BASE_URL}/collections/${slug}`
+    }
+  };
+}
+
 export default async function CollectionPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const collection = await getCollectionBySlug(slug);

@@ -306,8 +306,19 @@ export function ProductsTable({
             </TableHeader>
             <TableBody>
               {filteredProducts.map((product) => (
-                <TableRow key={product.id} className="hover:bg-muted/50">
-                  <TableCell className="pl-4">
+                <TableRow
+                  key={product.id}
+                  className="hover:bg-muted/50 cursor-pointer"
+                  onClick={(e) => {
+                    // Don't navigate if clicking on checkbox or delete button
+                    const target = e.target as HTMLElement
+                    if (target.closest('button') || target.closest('[role="checkbox"]')) {
+                      return
+                    }
+                    router.push(`/admin/products/${product.id}`)
+                  }}
+                >
+                  <TableCell className="pl-4" onClick={(e) => e.stopPropagation()}>
                     <Checkbox
                       checked={selectedProducts.includes(product.id)}
                       onCheckedChange={() => toggleSelect(product.id)}
@@ -329,9 +340,9 @@ export function ProductsTable({
                     </div>
                   </TableCell>
                   <TableCell className="font-medium">
-                    <Link href={`/admin/products/${product.id}`} className="hover:underline text-sm font-semibold block">
+                    <div className="hover:underline text-sm font-semibold block">
                       {product.title}
-                    </Link>
+                    </div>
                     {product.productNumber && (
                       <span className="text-xs text-muted-foreground">{product.productNumber}</span>
                     )}
@@ -358,7 +369,7 @@ export function ProductsTable({
                   <TableCell className="text-sm text-muted-foreground">{product.categoryName || 'Uncategorized'}</TableCell>
                   <TableCell className="text-sm text-muted-foreground text-center">4</TableCell>
                   <TableCell className="text-sm text-muted-foreground text-center">2</TableCell>
-                  <TableCell>
+                  <TableCell onClick={(e) => e.stopPropagation()}>
                     <Button
                       variant="ghost"
                       size="icon"

@@ -1,7 +1,5 @@
-'use client'
-
 import { useEffect, useState } from "react"
-import { getProductsAction } from "@/actions/products"
+import { getRelatedProductsAction } from "@/actions/products"
 import { ProductCard } from "@/components/storefront/ProductCard"
 
 interface RelatedProductsProps {
@@ -15,19 +13,10 @@ export function RelatedProducts({ categoryId, currentProductId }: RelatedProduct
 
   useEffect(() => {
     async function loadRelated() {
-      if (!categoryId) {
-        setLoading(false)
-        return
-      }
-
       try {
-        // Fetch products from same category, exclude current
-        const result = await getProductsAction({
-          category: categoryId,
-          limit: 5
-        })
-        const related = result.products || []
-        setProducts(related.filter((p: any) => p.id !== currentProductId).slice(0, 4))
+        // Use optimized related products function
+        const related = await getRelatedProductsAction(currentProductId, 4)
+        setProducts(related)
       } catch (err) {
         console.error("Failed to load related products", err)
       } finally {
@@ -35,7 +24,7 @@ export function RelatedProducts({ categoryId, currentProductId }: RelatedProduct
       }
     }
     loadRelated()
-  }, [categoryId, currentProductId])
+  }, [currentProductId])
 
   if (loading || products.length === 0) return null
 

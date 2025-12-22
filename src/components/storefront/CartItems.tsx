@@ -39,7 +39,7 @@ export function CartItems() {
             <div className="flex justify-between">
               <div>
                 <h3 className="font-medium">
-                  <Link href={`/products/${item.product.id}`} className="hover:underline">
+                  <Link href={`/products/${item.product.slug}`} className="hover:underline">
                     {item.product.name}
                   </Link>
                 </h3>

@@ -1,9 +1,16 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import {
+  addToCartAction,
+  removeFromCartAction,
+  updateCartQuantityAction,
+  syncCartAction
+} from '@/actions/cart'
 
 export interface Product {
   id: string
   name: string
+  slug: string
   description: string
   price: number
   images: string[]
@@ -18,14 +25,15 @@ export interface CartItem {
 
 interface CartStore {
   items: CartItem[]
-  addItem: (product: Product, quantity?: number, variantId?: string) => void
-  removeItem: (productId: string, variantId?: string) => void
-  updateQuantity: (productId: string, quantity: number, variantId?: string) => void
+  addItem: (product: Product, quantity?: number, variantId?: string) => Promise<void>
+  removeItem: (productId: string, variantId?: string) => Promise<void>
+  updateQuantity: (productId: string, quantity: number, variantId?: string) => Promise<void>
   clearCart: () => void
   total: () => number
   isOpen: boolean
   openCart: () => void
   closeCart: () => void
+  syncWithServer: () => Promise<void>
 }
 
 export const useCart = create<CartStore>()(
@@ -35,10 +43,37 @@ export const useCart = create<CartStore>()(
       isOpen: false,
       openCart: () => set({ isOpen: true }),
       closeCart: () => set({ isOpen: false }),
-      addItem: (product, quantity = 1, variantId) => {
+
+      syncWithServer: async () => {
+        const localItems = get().items;
+        const serverCart = await syncCartAction(localItems);
+
+        if (serverCart && serverCart.items) {
+          // Map server items back to local format
+          // Note: Server might return slightly different structure, ensuring compatibility
+          const mergedItems = serverCart.items.map((i: any) => ({
+            product: {
+              id: i.productId.toString(),
+              name: i.title || 'Product', // server should ensure title
+              slug: i.slug || i.productId.toString(), // server should return slug
+              price: Number(i.price),
+              images: i.image ? [i.image] : [],
+              description: '',
+              categoryId: ''
+            },
+            quantity: i.quantity,
+            variantId: i.variantId ? i.variantId.toString() : undefined
+          }));
+
+          set({ items: mergedItems });
+        }
+      },
+
+      addItem: async (product, quantity = 1, variantId) => {
         const items = get().items
         const existingItem = items.find((item) => item.product.id === product.id && item.variantId === variantId)
 
+        // Optimistic Update
         if (existingItem) {
           set({
             items: items.map((item) =>
@@ -50,19 +85,23 @@ export const useCart = create<CartStore>()(
         } else {
           set({ items: [...items, { product, quantity, variantId }] })
         }
+
+        // Server Call
+        await addToCartAction(product, quantity, variantId);
       },
-      removeItem: (productId, variantId) => {
+
+      removeItem: async (productId, variantId) => {
         set({
           items: get().items.filter((item) => {
             if (item.product.id !== productId) return true;
-            // If deleting, check variant Match
-            // If item has variantId and we passed one, compare them.
-            // If item has no variantId (base product) and we passed undefined, compare them.
             return item.variantId !== variantId;
           })
         })
+
+        await removeFromCartAction(productId, variantId);
       },
-      updateQuantity: (productId, quantity, variantId) => {
+
+      updateQuantity: async (productId, quantity, variantId) => {
         set({
           items: get().items.map((item) =>
             item.product.id === productId && item.variantId === variantId
@@ -70,7 +109,10 @@ export const useCart = create<CartStore>()(
               : item
           ),
         })
+
+        await updateCartQuantityAction(productId, quantity, variantId);
       },
+
       clearCart: () => set({ items: [] }),
       total: () => {
         return get().items.reduce(

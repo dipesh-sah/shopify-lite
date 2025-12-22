@@ -1,9 +1,10 @@
 'use client'
 
 import Link from "next/link"
-import { ShoppingCart, Search, ChevronDown } from "lucide-react"
+import { ShoppingCart, ChevronDown } from "lucide-react"
 import { useCart } from "@/store/cart"
 import { useEffect, useState } from "react"
+import { SearchBar } from "./SearchBar"
 
 interface Category {
   id: string
@@ -46,8 +47,8 @@ export function NavbarClient({ categories, subcategories, children }: NavbarClie
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container flex h-16 items-center justify-between">
-        <Link href="/" className="flex items-center gap-2 font-bold text-xl">
+      <div className="container flex h-16 items-center justify-between gap-4">
+        <Link href="/" className="flex items-center gap-2 font-bold text-xl flex-shrink-0">
           <span className="text-primary">Shopify</span>Lite
         </Link>
 
@@ -99,9 +100,7 @@ export function NavbarClient({ categories, subcategories, children }: NavbarClie
         </nav>
 
         <div className="flex items-center gap-4">
-          <button className="p-2 hover:bg-accent rounded-full">
-            <Search className="h-5 w-5" />
-          </button>
+          <SearchBar />
           <Link href="#" onClick={(e) => { e.preventDefault(); useCart.getState().openCart() }} className="p-2 hover:bg-accent rounded-full relative">
             <ShoppingCart className="h-5 w-5" />
             {itemCount > 0 && (

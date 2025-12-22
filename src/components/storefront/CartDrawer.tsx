@@ -11,11 +11,12 @@ import { useEffect, useState } from "react"
 import { cn } from "@/lib/utils"
 
 export function CartDrawer() {
-  const { items, removeItem, updateQuantity, total, isOpen, closeCart } = useCart()
+  const { items, removeItem, updateQuantity, total, isOpen, closeCart, syncWithServer } = useCart()
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
     setMounted(true)
+    syncWithServer()
   }, [])
 
   if (!mounted) return null
@@ -56,7 +57,7 @@ export function CartDrawer() {
                       <div className="flex flex-1 flex-col">
                         <div className="flex justify-between text-base font-medium">
                           <h3 className="line-clamp-2">
-                            <Link href={`/products/${item.product.id}`} onClick={closeCart} className="hover:underline">
+                            <Link href={`/products/${item.product.slug}`} onClick={closeCart} className="hover:underline">
                               {item.product.name}
                             </Link>
                           </h3>
@@ -116,6 +117,6 @@ export function CartDrawer() {
           </>
         )}
       </SheetContent>
-    </Sheet>
+    </Sheet >
   )
 }

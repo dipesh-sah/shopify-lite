@@ -1,3 +1,5 @@
+'use client'
+
 import Link from "next/link"
 import { type Product } from "@/store/cart"
 import { ShoppingCart } from "lucide-react"
@@ -8,20 +10,42 @@ interface ProductCardProps {
 }
 
 export function ProductCard({ product }: ProductCardProps) {
+  // Debug: Log product data
+  console.log('ProductCard data:', {
+    id: product.id,
+    title: product.title || product.name,
+    price: product.price,
+    displayPrice: product.displayPrice,
+    variants: product.variants?.length,
+    firstVariantPrice: product.variants?.[0]?.price
+  });
+
   const hasDiscount = product.compareAtPrice && product.compareAtPrice > product.price
   const discountPercent = hasDiscount
     ? Math.round(((product.compareAtPrice - product.price) / product.compareAtPrice) * 100)
     : 0
 
+  // Calculate display price with proper fallback
+  const displayPrice = product.displayPrice ||
+    (product.variants && product.variants.length > 0 ? product.variants[0].price : null) ||
+    product.price;
+
+  console.log('Calculated displayPrice:', displayPrice);
+
   return (
     <div className="group relative rounded-lg border bg-card p-4 shadow-sm transition-shadow hover:shadow-md flex flex-col">
-      <Link href={`/products/${product.id}`} className="block">
+      <Link href={`/products/${product.slug}`} className="block">
         <div className="aspect-square w-full overflow-hidden rounded-md bg-muted mb-4 relative">
           {product.images && product.images.length > 0 ? (
             <img
               src={typeof product.images[0] === 'string' ? product.images[0] : product.images[0].url}
-              alt={product.images[0].altText || product.name}
+              alt={product.title || product.name}
               className="h-full w-full object-cover object-center group-hover:opacity-75 transition-opacity"
+              onError={(e) => {
+                console.error('Image load error:', product.images[0]);
+                e.currentTarget.style.display = 'none';
+                e.currentTarget.parentElement!.innerHTML = '<div class="flex h-full items-center justify-center"><svg class="h-12 w-12 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path></svg></div>';
+              }}
             />
           ) : (
             <div className="flex h-full items-center justify-center">
@@ -61,8 +85,8 @@ export function ProductCard({ product }: ProductCardProps) {
         )}
 
         <h3 className="font-semibold text-lg group-hover:underline">
-          <Link href={`/products/${product.id}`}>
-            {product.name}
+          <Link href={`/products/${product.slug}`}>
+            {product.title || product.name}
           </Link>
         </h3>
 
@@ -72,10 +96,17 @@ export function ProductCard({ product }: ProductCardProps) {
 
         <div className="mt-4 flex items-center justify-between">
           <div className="flex flex-col">
-            <span className="font-bold text-lg">${Number(product.price).toFixed(2)}</span>
+            <span className="font-bold text-lg">
+              ${Number(displayPrice).toFixed(2)}
+            </span>
             {hasDiscount && (
               <span className="text-sm text-muted-foreground line-through">
                 ${Number(product.compareAtPrice).toFixed(2)}
+              </span>
+            )}
+            {product.variants && product.variants.length > 1 && (
+              <span className="text-xs text-muted-foreground mt-1">
+                {product.variants.length} variants
               </span>
             )}
           </div>
@@ -83,7 +114,7 @@ export function ProductCard({ product }: ProductCardProps) {
           <div className="flex gap-2">
             <WishlistButton productId={product.id} />
             <Link
-              href={`/products/${product.id}`}
+              href={`/products/${product.slug}`}
               className="rounded-full bg-primary p-2 text-primary-foreground hover:bg-primary/90 transition-colors"
             >
               <ShoppingCart className="h-4 w-4" />

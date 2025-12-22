@@ -78,6 +78,17 @@ export async function getCustomerOrdersAction(email?: string, userId?: string) {
 export async function createOrderAction(data: any) {
   try {
     const orderId = await createOrder(data)
+
+    // Save payment method as metafield if provided
+    if (data.paymentMethod) {
+      try {
+        await updateMetafieldAction('order', orderId, 'custom', 'payment_method', data.paymentMethod, 'string')
+      } catch (e) {
+        console.error("Failed to save payment method metafield:", e)
+        // Don't fail the order just for this
+      }
+    }
+
     return orderId
   } catch (error) {
     console.error("Error creating order:", error)
