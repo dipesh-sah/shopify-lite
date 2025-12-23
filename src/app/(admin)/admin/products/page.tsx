@@ -12,7 +12,7 @@ interface AdminProductsPageProps {
 
 import { getCollectionsAction } from "@/actions/collections"
 
-// ... imports ...
+import { CSVImportExport } from "@/components/admin/products/CSVImportExport"
 
 export default async function AdminProductsPage({ searchParams }: AdminProductsPageProps) {
   const params = await searchParams
@@ -41,8 +41,6 @@ export default async function AdminProductsPage({ searchParams }: AdminProductsP
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Products</h1>
         <div className="flex items-center gap-2">
-          <ProductActions />
-
           <Button size="sm" asChild>
             <Link href="/admin/products/new">
               <Plus className="mr-2 h-4 w-4" />
@@ -51,6 +49,9 @@ export default async function AdminProductsPage({ searchParams }: AdminProductsP
           </Button>
         </div>
       </div>
+
+      {/* CSV Operations */}
+      <CSVImportExport />
 
       {/* Products Table */}
       <React.Suspense fallback={<div>Loading products...</div>}>

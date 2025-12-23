@@ -1,7 +1,7 @@
 'use client'
 
 import { Star, Package, Truck, Shield, Share2, Heart, ArrowRightLeft, Check, AlertCircle, ZoomIn, X, ChevronLeft, ChevronRight, Tag, Box } from "lucide-react"
-import { useEffect, useState } from "react"
+import { useEffect, useState, useRef } from "react"
 import { useCart } from "@/store/cart"
 import { useWishlist } from "@/store/wishlist"
 import Link from "next/link"
@@ -12,6 +12,14 @@ import { refreshProductReviewsAction } from "@/actions/reviews"
 import { ReviewForm } from "@/components/storefront/ReviewForm"
 import { getRelatedProductsAction } from "@/actions/products"
 import { ProductCard } from "@/components/storefront/ProductCard"
+import { Swiper, SwiperSlide } from 'swiper/react'
+import { Navigation, Pagination, Thumbs, FreeMode } from 'swiper/modules'
+import type { Swiper as SwiperType } from 'swiper'
+import 'swiper/css'
+import 'swiper/css/navigation'
+import 'swiper/css/pagination'
+import 'swiper/css/thumbs'
+import 'swiper/css/free-mode'
 
 interface ProductDetailClientProps {
   product: any
@@ -29,6 +37,10 @@ export function ProductDetailClient({ product, initialReviews, initialStats }: P
   const [showImageModal, setShowImageModal] = useState(false)
   const [relatedProducts, setRelatedProducts] = useState<any[]>([])
   const [showStickyBar, setShowStickyBar] = useState(false)
+  const [thumbsSwiper, setThumbsSwiper] = useState<SwiperType | null>(null)
+  const [mainSwiper, setMainSwiper] = useState<SwiperType | null>(null)
+  const navigationPrevRef = useRef<HTMLButtonElement>(null)
+  const navigationNextRef = useRef<HTMLButtonElement>(null)
 
   const { addItem } = useCart()
   const { addItem: addToWishlist, removeItem: removeFromWishlist, isInWishlist } = useWishlist()
@@ -57,9 +69,13 @@ export function ProductDetailClient({ product, initialReviews, initialStats }: P
   }, [product])
 
   const handleAddToCart = () => {
+    const itemName = (selectedVariant && selectedVariant.title !== 'Default Title')
+      ? `${product.title} - ${selectedVariant.title}`
+      : product.title;
+
     addItem({
       id: product.id,
-      name: selectedVariant ? `${product.title} - ${selectedVariant.title}` : product.title,
+      name: itemName,
       slug: product.slug,
       description: product.description || '',
       price: currentPrice,
@@ -70,9 +86,13 @@ export function ProductDetailClient({ product, initialReviews, initialStats }: P
   }
 
   const handleBuyNow = () => {
+    const itemName = (selectedVariant && selectedVariant.title !== 'Default Title')
+      ? `${product.title} - ${selectedVariant.title}`
+      : product.title;
+
     addItem({
       id: product.id,
-      name: selectedVariant ? `${product.title} - ${selectedVariant.title}` : product.title,
+      name: itemName,
       slug: product.slug,
       description: product.description || '',
       price: currentPrice,
@@ -134,53 +154,111 @@ export function ProductDetailClient({ product, initialReviews, initialStats }: P
 
       <div className="container mx-auto px-4 py-8">
         <div className="grid lg:grid-cols-2 gap-8 lg:gap-12">
-          {/* Image Gallery */}
+          {/* Image Gallery with Swiper */}
           <div className="space-y-4">
+            {/* Main Swiper */}
             <div className="relative group">
-              <div className="aspect-square rounded-2xl overflow-hidden bg-gradient-to-br from-gray-100 to-gray-200 shadow-2xl">
-                {images[selectedImage] && (
-                  <img
-                    src={typeof images[selectedImage] === 'string' ? images[selectedImage] : images[selectedImage].url}
-                    alt={product.title}
-                    className="w-full h-full object-contain transition-transform duration-500 group-hover:scale-105"
-                  />
-                )}
-              </div>
+              <Swiper
+                onSwiper={setMainSwiper}
+                modules={[Navigation, Pagination, Thumbs, FreeMode]}
+                spaceBetween={10}
+                navigation={{
+                  prevEl: navigationPrevRef.current,
+                  nextEl: navigationNextRef.current,
+                }}
+                onBeforeInit={(swiper: any) => {
+                  swiper.params.navigation.prevEl = navigationPrevRef.current
+                  swiper.params.navigation.nextEl = navigationNextRef.current
+                }}
+                pagination={{
+                  clickable: true,
+                  dynamicBullets: true,
+                }}
+                thumbs={{ swiper: thumbsSwiper && !thumbsSwiper.destroyed ? thumbsSwiper : null }}
+                onSlideChange={(swiper) => setSelectedImage(swiper.activeIndex)}
+                className="rounded-2xl overflow-hidden bg-gradient-to-br from-gray-100 to-gray-200 shadow-2xl"
+              >
+                {images.map((img: any, idx: number) => (
+                  <SwiperSlide key={idx}>
+                    <div className="aspect-square flex items-center justify-center">
+                      <img
+                        src={typeof img === 'string' ? img : img.url}
+                        alt={`${product.title} ${idx + 1}`}
+                        className="w-full h-full object-contain transition-transform duration-500 hover:scale-105"
+                      />
+                    </div>
+                  </SwiperSlide>
+                ))}
+              </Swiper>
+
+              {/* Custom Navigation Buttons */}
+              <button
+                ref={navigationPrevRef}
+                className="swiper-button-prev-custom absolute left-4 top-1/2 -translate-y-1/2 z-10 bg-white/90 backdrop-blur-sm p-3 rounded-full shadow-lg hover:bg-white transition-all hover:scale-110 opacity-0 group-hover:opacity-100"
+              >
+                <ChevronLeft className="w-6 h-6 text-gray-700" />
+              </button>
+              <button
+                ref={navigationNextRef}
+                className="swiper-button-next-custom absolute right-4 top-1/2 -translate-y-1/2 z-10 bg-white/90 backdrop-blur-sm p-3 rounded-full shadow-lg hover:bg-white transition-all hover:scale-110 opacity-0 group-hover:opacity-100"
+              >
+                <ChevronRight className="w-6 h-6 text-gray-700" />
+              </button>
+
+              {/* Zoom Button */}
               <button
                 onClick={() => setShowImageModal(true)}
-                className="absolute top-4 right-4 bg-white/90 backdrop-blur-sm p-3 rounded-full shadow-lg hover:bg-white transition-all hover:scale-110"
+                className="absolute top-4 right-4 z-10 bg-white/90 backdrop-blur-sm p-3 rounded-full shadow-lg hover:bg-white transition-all hover:scale-110"
               >
                 <ZoomIn className="w-5 h-5 text-gray-700" />
               </button>
+
+              {/* Discount Badge */}
               {hasDiscount && (
-                <div className="absolute top-4 left-4 bg-gradient-to-r from-red-500 to-pink-500 text-white px-4 py-2 rounded-full font-bold text-sm shadow-lg">
+                <div className="absolute top-4 left-4 bg-gradient-to-r from-red-500 to-pink-500 text-white px-4 py-2 rounded-full font-bold text-sm shadow-lg z-10">
                   SAVE {discountPercent}%
                 </div>
               )}
             </div>
 
-            {/* Thumbnails */}
+            {/* Thumbnail Swiper */}
             {images.length > 1 && (
-              <div className="flex gap-3 overflow-x-auto pb-2">
+              <Swiper
+                onSwiper={setThumbsSwiper}
+                modules={[FreeMode, Thumbs]}
+                spaceBetween={12}
+                slidesPerView={3}
+                freeMode={true}
+                watchSlidesProgress={true}
+                className="thumbs-swiper"
+                breakpoints={{
+                  640: { slidesPerView: 4 },
+                  768: { slidesPerView: 5 },
+                }}
+              >
                 {images.map((img: any, idx: number) => (
-                  <button
-                    key={idx}
-                    onClick={() => setSelectedImage(idx)}
-                    className={cn(
-                      "flex-shrink-0 w-20 h-20 rounded-xl overflow-hidden border-2 transition-all",
-                      selectedImage === idx
-                        ? "border-indigo-600 shadow-lg scale-105"
-                        : "border-gray-200 hover:border-indigo-300"
-                    )}
-                  >
-                    <img
-                      src={typeof img === 'string' ? img : img.url}
-                      alt={`${product.title} ${idx + 1}`}
-                      className="w-full h-full object-cover"
-                    />
-                  </button>
+                  <SwiperSlide key={idx}>
+                    <button
+                      onClick={() => {
+                        setSelectedImage(idx)
+                        mainSwiper?.slideTo(idx)
+                      }}
+                      className={cn(
+                        "w-full aspect-square rounded-xl overflow-hidden border-2 transition-all cursor-pointer",
+                        selectedImage === idx
+                          ? "border-indigo-600 shadow-lg scale-105"
+                          : "border-gray-200 hover:border-indigo-300"
+                      )}
+                    >
+                      <img
+                        src={typeof img === 'string' ? img : img.url}
+                        alt={`${product.title} ${idx + 1}`}
+                        className="w-full h-full object-cover"
+                      />
+                    </button>
+                  </SwiperSlide>
                 ))}
-              </div>
+              </Swiper>
             )}
           </div>
 
@@ -237,7 +315,7 @@ export function ProductDetailClient({ product, initialReviews, initialStats }: P
             <Separator />
 
             {/* Variant Selection */}
-            {product.variants && product.variants.length > 0 && (
+            {product.variants && product.variants.length > 0 && !(product.variants.length === 1 && product.variants[0].title === 'Default Title') && (
               <div className="space-y-4">
                 <h3 className="font-semibold text-gray-900">Select Options</h3>
                 <div className="flex flex-wrap gap-3">
@@ -433,9 +511,10 @@ export function ProductDetailClient({ product, initialReviews, initialStats }: P
           <div className="mt-8 max-w-4xl mx-auto">
             {activeTab === 'description' && (
               <div className="prose max-w-none">
-                <p className="text-gray-700 leading-relaxed text-lg">
-                  {product.description || "No description available."}
-                </p>
+                <div
+                  className="text-gray-700 leading-relaxed text-lg"
+                  dangerouslySetInnerHTML={{ __html: product.description || "No description available." }}
+                />
               </div>
             )}
 

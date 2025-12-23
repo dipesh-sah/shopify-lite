@@ -71,30 +71,35 @@ export function SearchBar() {
   }
 
   return (
-    <div className="relative flex items-center" ref={dropdownRef}>
+    <div className="relative flex items-center w-full" ref={dropdownRef}>
       {/* Desktop Search */}
-      <form onSubmit={handleSubmit} className="hidden md:flex items-center relative w-full max-w-md">
-        <div className="relative w-full">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+      <form onSubmit={handleSubmit} className="hidden md:flex items-center relative w-full h-10">
+        <div className="relative flex-1 h-full">
           <Input
             ref={inputRef}
             type="search"
-            placeholder="Search products..."
+            placeholder="Suchbegriff eingeben..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10 pr-10 w-full"
+            className="pl-4 pr-12 w-full h-full rounded-l-md rounded-r-none border-[#ddd] focus-visible:ring-0 focus-visible:border-primary transition-all text-sm"
             onFocus={() => searchQuery && setIsOpen(true)}
           />
           {searchQuery && (
             <button
               type="button"
               onClick={handleClear}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-1"
             >
               <X className="h-4 w-4" />
             </button>
           )}
         </div>
+        <Button
+          type="submit"
+          className="h-full px-5 rounded-l-none rounded-r-md bg-[#eee] text-[#333] hover:bg-primary hover:text-white border border-[#ddd] border-l-0 transition-colors"
+        >
+          <Search className="h-4 w-4" />
+        </Button>
 
         {/* Search Results Dropdown */}
         {isOpen && (

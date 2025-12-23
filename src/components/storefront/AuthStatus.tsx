@@ -10,27 +10,30 @@ export async function AuthStatus() {
 
   if (user) {
     return (
-      <div className="flex items-center gap-4">
-        <Link href="/account" className="flex items-center gap-2 text-sm font-medium hover:text-primary">
-          <User className="h-4 w-4" />
-          <span>{user.firstName}</span>
+      <div className="flex items-center gap-6">
+        <Link href="/account" className="flex items-center gap-1 cursor-pointer hover:text-primary transition-colors text-sm font-medium group">
+          <User className="h-6 w-6" />
+          <div className="hidden lg:flex flex-col leading-tight">
+            <span className="text-[10px] text-muted-foreground uppercase group-hover:text-primary transition-colors">Mein</span>
+            <span>{user.firstName}</span>
+          </div>
         </Link>
-        <form action={logoutAction}>
-          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive">
+        <form action={logoutAction} className="flex items-center">
+          <button type="submit" className="text-muted-foreground hover:text-destructive transition-colors">
             <LogOut className="h-4 w-4" />
-            <span className="sr-only">Log out</span>
-          </Button>
+          </button>
         </form>
       </div>
     )
   }
 
   return (
-    <div className="flex items-center gap-4">
-      <Link href="/signin" className="text-sm font-medium hover:text-primary">Sign In</Link>
-      <Link href="/signup">
-        <Button size="sm">Sign Up</Button>
-      </Link>
-    </div>
+    <Link href="/signin" className="flex items-center gap-1 cursor-pointer hover:text-primary transition-colors text-sm font-medium group">
+      <User className="h-6 w-6" />
+      <div className="hidden lg:flex flex-col leading-tight">
+        <span className="text-[10px] text-muted-foreground uppercase group-hover:text-primary transition-colors">Mein</span>
+        <span>Anmelden</span>
+      </div>
+    </Link>
   )
 }

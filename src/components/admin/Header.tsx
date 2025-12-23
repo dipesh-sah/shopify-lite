@@ -14,6 +14,8 @@ import {
 import { Input } from "@/components/ui/input"
 import { useRouter } from "next/navigation"
 import { logoutAction } from "@/actions/auth"
+import { Badge } from "@/components/ui/badge"
+import { useThemeStore } from "@/store/theme-store"
 
 interface AdminHeaderProps {
   onMenuClick: () => void
@@ -21,6 +23,7 @@ interface AdminHeaderProps {
 
 export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
   const router = useRouter()
+  const { settings } = useThemeStore()
 
   const handleSignOut = async () => {
     await logoutAction()
@@ -33,6 +36,11 @@ export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
         <Menu className="h-5 w-5" />
         <span className="sr-only">Toggle menu</span>
       </Button>
+
+      <div className="hidden md:flex items-center gap-2 mr-4">
+        <span className="text-sm font-semibold text-muted-foreground">Store:</span>
+        <Badge variant="outline" className="font-medium bg-muted/50">{settings.info.name || "Main Store"}</Badge>
+      </div>
 
       <div className="w-full flex-1">
         <form onSubmit={(e) => e.preventDefault()}>

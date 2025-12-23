@@ -3,6 +3,7 @@
 import { revalidateTag, revalidatePath } from "next/cache"
 import { updateMetafieldAction } from "@/actions/metadata"
 import * as db from "@/lib/products"
+import * as collectionDb from "@/lib/collections"
 
 export async function getProductsAction(options: {
   search?: string;
@@ -170,64 +171,37 @@ export async function deleteProductAction(id: string) {
   }
 }
 
+export async function bulkUpdateProductsStatusAction(ids: string[], status: 'active' | 'draft' | 'archived') {
+  try {
+    for (const id of ids) {
+      await db.updateProduct(id, { status })
+    }
+    // @ts-ignore
+    revalidateTag('products')
+    revalidatePath('/admin/products')
+    return { success: true }
+  } catch (error) {
+    console.error("Error bulk updating status:", error)
+    throw error
+  }
+}
+
 export async function getMediaAction() {
   // Stub: returning empty array as no media lib implementation exists yet
   return []
 }
 
+import { parseShopifyCsv, exportToShopifyCsv } from "@/lib/shopify-csv";
+
 export async function exportProductsAction() {
   try {
-    const { products } = await db.getProducts({ limit: 10000 }); // Fetch all (or many)
+    const { products } = await db.getProducts({ limit: 10000 });
+    const csvContent = exportToShopifyCsv(products);
 
-    const header = [
-      'ID',
-      'Title',
-      'Description',
-      'Status',
-      'Price',
-      'Compare At Price',
-      'Cost Per Item',
-      'SKU',
-      'Barcode',
-      'Quantity',
-      'Weight',
-      'Weight Unit',
-      'Vendor',
-      'Product Type',
-      'Tags'
-    ];
-
-    const csvRows = products.map((p: any) => {
-      const escape = (text: string | null | undefined) => {
-        if (!text) return '';
-        const str = String(text);
-        if (str.includes(',') || str.includes('"') || str.includes('\n')) {
-          return `"${str.replace(/"/g, '""')}"`;
-        }
-        return str;
-      };
-
-      return [
-        p.id,
-        escape(p.title),
-        escape(p.description),
-        p.status,
-        p.price,
-        p.compareAtPrice || '',
-        p.costPerItem || '',
-        escape(p.sku),
-        escape(p.barcode),
-        p.quantity,
-        p.weight || '',
-        p.weightUnit || '',
-        escape(p.vendor),
-        escape(p.productType),
-        escape(p.tags?.join(', '))
-      ].join(',');
-    });
-
-    const csvContent = [header.join(','), ...csvRows].join('\n');
-    return { csv: csvContent, filename: `products-export-${new Date().toISOString().split('T')[0]}.csv` };
+    return {
+      csv: csvContent,
+      filename: `shopify-products-export-${new Date().toISOString().split('T')[0]}.csv`
+    };
 
   } catch (error) {
     console.error("Export Products Error:", error);
@@ -241,83 +215,55 @@ export async function importProductsAction(formData: FormData) {
     if (!file) throw new Error("No file uploaded");
 
     const text = await file.text();
-    const [headerLine, ...lines] = text.split('\n');
+    const importedProducts = parseShopifyCsv(text);
 
-    if (!headerLine) throw new Error("Empty CSV file");
-
-    // Simple CSV parser
     let successCount = 0;
     let errors: string[] = [];
 
-    const headers = headerLine.split(',').map(h => h.trim().replace(/^"|"$/g, ''));
-
-    // Helper to split CSV line respecting quotes
-    const splitCsv = (line: string) => {
-      const matches = [];
-      let currentMatch = '';
-      let inQuote = false;
-      for (let i = 0; i < line.length; i++) {
-        const char = line[i];
-        if (char === '"') {
-          if (inQuote && line[i + 1] === '"') {
-            currentMatch += '"';
-            i++;
-          } else {
-            inQuote = !inQuote;
-          }
-        } else if (char === ',' && !inQuote) {
-          matches.push(currentMatch);
-          currentMatch = '';
-        } else {
-          currentMatch += char;
-        }
-      }
-      matches.push(currentMatch);
-      return matches;
-    };
-
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i].trim();
-      if (!line) continue;
-
+    for (const productData of importedProducts) {
       try {
-        const values = splitCsv(line);
-        const row: any = {};
+        if (!productData.title) throw new Error(`Missing Title for handle: ${productData.slug}`);
 
-        headers.forEach((header, index) => {
-          let val = values[index]?.trim() || '';
-          if (val.startsWith('"') && val.endsWith('"')) val = val.slice(1, -1).replace(/""/g, '"');
-          row[header] = val;
-        });
+        if (!productData.slug) {
+          productData.slug = productData.title.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '-' + Math.random().toString(36).substring(7);
+        }
 
-        // Map CSV columns to Product Data
-        const productData: any = {
-          title: row['Title'],
-          description: row['Description'],
-          status: row['Status'] || 'draft',
-          price: parseFloat(row['Price']) || 0,
-          compareAtPrice: row['Compare At Price'] ? parseFloat(row['Compare At Price']) : undefined,
-          costPerItem: row['Cost Per Item'] ? parseFloat(row['Cost Per Item']) : undefined,
-          sku: row['SKU'],
-          barcode: row['Barcode'],
-          quantity: parseInt(row['Quantity']) || 0,
-          weight: row['Weight'] ? parseFloat(row['Weight']) : 0,
-          weightUnit: row['Weight Unit'] || 'kg',
-          vendor: row['Vendor'],
-          productType: row['Product Type'],
-          tags: row['Tags'] ? row['Tags'].split(',').map((t: string) => t.trim()) : []
-        };
+        // Handle auto-collection creation for productType
+        if (productData.productType) {
+          const typeName = productData.productType.trim();
+          const typeSlug = typeName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
 
-        if (!productData.title) throw new Error("Title is required");
+          if (typeName && typeSlug) {
+            let collection = await collectionDb.getCollectionBySlug(typeSlug);
 
-        // Generate slug
-        productData.slug = productData.title.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '-' + Math.random().toString(36).substring(7);
+            if (!collection) {
+              // Create collection if missing
+              const newId = await collectionDb.createCollection({
+                name: typeName,
+                slug: typeSlug,
+                type: 'manual',
+                isActive: true
+              });
+              productData.collectionIds = [...(productData.collectionIds || []), newId];
+            } else {
+              // Add existing id to collectionIds
+              if (!productData.collectionIds?.includes(collection.id)) {
+                productData.collectionIds = [...(productData.collectionIds || []), collection.id];
+              }
+            }
+          }
+        }
 
-        await db.createProduct(productData);
+        // Check if product exists for upsert
+        const existingProduct = await db.getProductBySlug(productData.slug);
+        if (existingProduct) {
+          await db.updateProduct(existingProduct.id, productData);
+        } else {
+          await db.createProduct(productData);
+        }
         successCount++;
-
       } catch (e: any) {
-        errors.push(`Row ${i + 1}: ${e.message}`);
+        errors.push(`Product "${productData.title || productData.slug}": ${e.message}`);
       }
     }
 

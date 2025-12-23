@@ -22,11 +22,12 @@ export async function createCollection(data: {
   seoTitle?: string;
   seoDescription?: string;
   isActive?: boolean;
+  hideFromNav?: boolean;
   seo?: Partial<SeoMetadata>;
 }) {
   const result = await execute(
-    `INSERT INTO categories (name, description, slug, type, conditions, image_url, seo_title, seo_description, status, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+    `INSERT INTO categories (name, description, slug, type, conditions, image_url, seo_title, seo_description, status, hide_from_nav, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
     [
       data.name,
       data.description || null,
@@ -36,7 +37,8 @@ export async function createCollection(data: {
       data.image || null,
       data.seoTitle || null,
       data.seoDescription || null,
-      data.isActive !== false ? 'active' : 'archived'
+      data.isActive !== false ? 'active' : 'archived',
+      data.hideFromNav || false
     ]
   );
 
@@ -136,7 +138,7 @@ export async function getAllSubcategories() {
 }
 
 export async function getActiveCollections() {
-  const rows = await query("SELECT * FROM categories WHERE status = 'active' ORDER BY created_at DESC");
+  const rows = await query("SELECT * FROM categories WHERE status = 'active' AND hide_from_nav = 0 ORDER BY created_at DESC");
   return rows.map(mapCollectionFromDb);
 }
 
@@ -153,8 +155,18 @@ export async function getCollection(id: string) {
   return collection;
 }
 
-export async function getCollectionBySlug(slug: string) {
-  const rows = await query('SELECT * FROM categories WHERE slug = ?', [slug]);
+export async function getCollectionBySlug(slug: string, locale: string = 'en-GB') {
+  const rows = await query(`
+    SELECT c.*, 
+           COALESCE(ct.name, c.name) as name,
+           COALESCE(ct.description, c.description) as description,
+           COALESCE(ct.meta_title, c.seo_title) as seo_title,
+           COALESCE(ct.meta_description, c.seo_description) as seo_description
+    FROM categories c
+    LEFT JOIN category_translations ct ON c.id = ct.category_id AND ct.locale = ?
+    WHERE ct.slug = ? OR c.slug = ?
+  `, [locale, slug, slug]);
+
   if (rows.length === 0) return null;
 
   const collection = mapCollectionFromDb(rows[0]);
@@ -177,6 +189,7 @@ export async function updateCollection(id: string, data: Partial<{
   seoTitle: string;
   seoDescription: string;
   isActive: boolean;
+  hideFromNav: boolean;
   seo: Partial<SeoMetadata>;
 }>) {
   // Check for slug change for redirects
@@ -200,6 +213,7 @@ export async function updateCollection(id: string, data: Partial<{
   if (data.seoTitle !== undefined) { updates.push('seo_title = ?'); values.push(data.seoTitle); }
   if (data.seoDescription !== undefined) { updates.push('seo_description = ?'); values.push(data.seoDescription); }
   if (data.isActive !== undefined) { updates.push('status = ?'); values.push(data.isActive ? 'active' : 'archived'); }
+  if (data.hideFromNav !== undefined) { updates.push('hide_from_nav = ?'); values.push(data.hideFromNav); }
 
   if (updates.length > 0) {
     updates.push('updated_at = NOW()');
@@ -286,6 +300,7 @@ function mapCollectionFromDb(row: any) {
     seoTitle: row.seo_title,
     seoDescription: row.seo_description,
     isActive: row.status === 'active',
+    hideFromNav: !!row.hide_from_nav,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     categoryId: row.parent_id ? row.parent_id.toString() : undefined,

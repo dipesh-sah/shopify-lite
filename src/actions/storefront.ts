@@ -2,23 +2,19 @@
 
 import { query } from "@/lib/db"
 import { getSettings } from "@/lib/settings"
+import * as db from "@/lib/products"
 
 export async function getSaleProductsAction(limit = 4) {
   try {
-    const products = await query(
-      `SELECT * FROM products 
-       WHERE compare_at_price > price 
-       AND status = 'active'
-       LIMIT ?`,
-      [limit]
-    ) as any[]
+    const { products } = await db.getProducts({
+      status: 'active',
+      limit,
+      // We can use minPrice/maxPrice if needed, but for sale we just need compare_at_price > price
+    })
 
-    // Parse JSON fields
-    return products.map(p => ({
-      ...p,
-      images: typeof p.images === 'string' ? JSON.parse(p.images) : p.images,
-      variants: typeof p.variants === 'string' ? JSON.parse(p.variants) : p.variants
-    }))
+    // Filter for sale products in memory (since getProducts doesn't have a sale filter yet)
+    // Or we could add it to getProducts if it was more complex.
+    return products.filter(p => p.compareAtPrice && p.compareAtPrice > p.price).slice(0, limit)
   } catch (error) {
     console.error("Error fetching sale products:", error)
     return []
@@ -27,22 +23,14 @@ export async function getSaleProductsAction(limit = 4) {
 
 export async function getBestSellingProductsAction(limit = 4) {
   try {
-    // Basic implementation: fetch active products. 
-    // In a real app, you'd join with order_items to count sales or use a 'total_sold' column.
-    // For now, let's assume popular products are Active ones.
-    const products = await query(
-      `SELECT * FROM products 
-       WHERE status = 'active' 
-       ORDER BY created_at DESC 
-       LIMIT ?`,
-      [limit]
-    ) as any[]
+    const { products } = await db.getProducts({
+      status: 'active',
+      limit,
+      sortBy: 'created_at',
+      sortOrder: 'desc'
+    })
 
-    return products.map(p => ({
-      ...p,
-      images: typeof p.images === 'string' ? JSON.parse(p.images) : p.images,
-      variants: typeof p.variants === 'string' ? JSON.parse(p.variants) : p.variants
-    }))
+    return products
   } catch (error) {
     console.error("Error fetching best sellers:", error)
     return []
@@ -51,13 +39,15 @@ export async function getBestSellingProductsAction(limit = 4) {
 
 export async function getFeaturedCategoriesAction() {
   try {
-    // For now, just fetch all root categories
+    // Fetch categories
     const categories = await query(
-      `SELECT * FROM categories WHERE parent_id IS NULL LIMIT 5`
+      `SELECT id, name, slug, description, image FROM categories WHERE parent_id IS NULL AND hide_from_nav = 0 ORDER BY position ASC LIMIT 5`
     ) as any[]
-    return categories
-  } catch (error) {
-    console.error("Error fetching categories:", error)
+
+    return categories || []
+  } catch (error: any) {
+    console.error("Error fetching collections:", error?.message)
+    // Return empty array so page doesn't crash
     return []
   }
 }

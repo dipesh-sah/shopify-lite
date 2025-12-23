@@ -569,9 +569,9 @@ export async function createProduct(data: Omit<Product, 'id' | 'createdAt' | 'up
         JSON.stringify(v.options || {})
       ];
       const variantResult = await execute(
-        `INSERT INTO product_variants (product_id, title, sku, price, inventory_quantity, options, created_at, updated_at) 
-            VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())`,
-        variantParams
+        `INSERT INTO product_variants (product_id, title, sku, price, inventory_quantity, options, images, created_at, updated_at) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+        [...variantParams, JSON.stringify(v.images || [])]
       );
 
       // Store first variant ID

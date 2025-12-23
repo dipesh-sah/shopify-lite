@@ -12,7 +12,7 @@ import {
   MoreVertical,
   Trash2
 } from "lucide-react"
-import { deleteProductAction } from "@/actions/products"
+import { deleteProductAction, bulkUpdateProductsStatusAction } from "@/actions/products"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -137,6 +137,20 @@ export function ProductsTable({
     setDeleteTarget('bulk')
   }
 
+  const handleBulkArchive = async () => {
+    if (selectedProducts.length === 0) return
+    setIsDeleting(true)
+    try {
+      await bulkUpdateProductsStatusAction(selectedProducts, 'archived')
+      setSelectedProducts([])
+      router.refresh()
+    } catch (error) {
+      alert("Failed to archive products")
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
   const confirmDelete = async () => {
     if (!deleteTarget) return
 
@@ -194,15 +208,48 @@ export function ProductsTable({
         </div>
 
         <div className="flex items-center gap-2 py-4">
-          <div className="relative flex-1 max-w-sm">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Filter products"
-              className="pl-8 bg-background"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
+          {selectedProducts.length > 0 ? (
+            <div className="flex items-center gap-2 bg-muted/50 px-3 py-1.5 rounded-md border border-primary/20 animate-in fade-in slide-in-from-top-1">
+              <span className="text-sm font-medium mr-2">
+                {selectedProducts.length} selected
+              </span>
+              <Button
+                variant="destructive"
+                size="sm"
+                className="h-8 gap-1.5"
+                onClick={handleBulkDeleteClick}
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                Delete
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8"
+                onClick={handleBulkArchive}
+              >
+                Archive
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8"
+                onClick={() => setSelectedProducts([])}
+              >
+                Clear
+              </Button>
+            </div>
+          ) : (
+            <div className="relative flex-1 max-w-sm">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Filter products"
+                className="pl-8 bg-background"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+          )}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="icon" className="h-9 w-9">

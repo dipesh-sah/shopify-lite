@@ -15,7 +15,12 @@ export interface Category {
   position: number;
   level: number;
   path: string;
+  name?: string;
+  slug?: string;
   isActive: boolean;
+  status: string;
+  hideFromNav: boolean;
+  type: 'manual' | 'smart' | 'category' | string;
   translations: Record<string, CategoryTranslation>;
   children?: Category[];
 }
@@ -27,8 +32,12 @@ export interface Category {
 export async function getCategoryTree(locale: string = 'en-GB'): Promise<Category[]> {
   const sql = `
     SELECT 
-      c.id, c.parent_id, c.position, c.level, c.path, c.status,
-      ct.name, ct.description, ct.meta_title, ct.meta_description, ct.slug
+      c.id, c.parent_id, c.position, c.level, c.path, c.status, c.hide_from_nav, c.type,
+      COALESCE(ct.name, c.name) as name, 
+      COALESCE(ct.description, c.description) as description,
+      COALESCE(ct.meta_title, c.seo_title) as meta_title, 
+      COALESCE(ct.meta_description, c.seo_description) as meta_description, 
+      COALESCE(ct.slug, c.slug) as slug
     FROM categories c
     LEFT JOIN category_translations ct ON c.id = ct.category_id AND ct.locale = ?
     ORDER BY c.level ASC, c.position ASC
@@ -43,10 +52,15 @@ export async function getCategoryTree(locale: string = 'en-GB'): Promise<Categor
     const category: Category = {
       id: row.id.toString(),
       parentId: row.parent_id ? row.parent_id.toString() : undefined,
-      position: row.position,
-      level: row.level,
+      position: Number(row.position),
+      level: Number(row.level),
       path: row.path,
+      name: row.name,
+      slug: row.slug,
       isActive: row.status === 'active',
+      status: row.status,
+      hideFromNav: Number(row.hide_from_nav) === 1,
+      type: row.type || 'category',
       translations: {
         [locale]: {
           locale,
@@ -79,6 +93,7 @@ export async function createCategory(data: {
   parentId?: number | null;
   position?: number;
   isActive?: boolean;
+  hideFromNav?: boolean;
   translations: CategoryTranslation[];
 }) {
   const parentId = data.parentId || null;
@@ -98,8 +113,8 @@ export async function createCategory(data: {
   }
 
   const result = await execute(
-    `INSERT INTO categories (parent_id, position, level, path, status) VALUES (?, ?, ?, ?, ?)`,
-    [parentId, position, level, path, status]
+    `INSERT INTO categories (parent_id, position, level, path, status, hide_from_nav) VALUES (?, ?, ?, ?, ?, ?)`,
+    [parentId, position, level, path, status, data.hideFromNav || false]
   );
 
   const categoryId = result.insertId;
@@ -123,6 +138,7 @@ export async function updateCategory(id: string, data: {
   parentId?: number | null;
   position?: number;
   isActive?: boolean;
+  hideFromNav?: boolean;
   translations: CategoryTranslation[];
 }) {
   const updates: string[] = [];
@@ -154,6 +170,11 @@ export async function updateCategory(id: string, data: {
   if (data.isActive !== undefined) {
     updates.push('status = ?');
     values.push(data.isActive ? 'active' : 'archived');
+  }
+
+  if (data.hideFromNav !== undefined) {
+    updates.push('hide_from_nav = ?');
+    values.push(data.hideFromNav);
   }
 
   if (updates.length > 0) {
@@ -194,7 +215,7 @@ export async function deleteCategory(id: string) {
 export async function updateCategoryPositions(reorders: { id: string, position: number, parentId?: string | null }[]) {
   for (const item of reorders) {
     const updates = ['position = ?'];
-    const values = [item.position];
+    const values: any[] = [item.position];
 
     if (item.parentId !== undefined) {
       updates.push('parent_id = ?');

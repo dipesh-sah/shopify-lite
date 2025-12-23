@@ -59,10 +59,11 @@ export function CollectionForm({ collection, initialSelectedProducts = [] }: Col
     slug: (collection?.slug || '').replace(/^\/+/, ''),
     type: collection?.type || 'manual', // 'manual' | 'smart'
     productIds: collection?.productIds || [] as string[],
-    isActive: collection?.isActive !== false, // default true
     image: collection?.image || '',
     seoTitle: collection?.seoTitle || '',
     seoDescription: collection?.seoDescription || '',
+    isActive: collection?.isActive !== false, // default true
+    hideFromNav: collection?.hideFromNav || false,
     metafields: [] as any[]
   })
 
@@ -109,7 +110,7 @@ export function CollectionForm({ collection, initialSelectedProducts = [] }: Col
         // Update cache with new results found
         setProductsCache(prev => {
           const next = { ...prev }
-          results.forEach(p => next[p.id] = p)
+          results.products.forEach((p: any) => next[p.id] = p)
           return next
         })
       } catch (err) {
@@ -407,6 +408,31 @@ export function CollectionForm({ collection, initialSelectedProducts = [] }: Col
                     maxImages={1}
                   />
                 )}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-4 space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <label className="text-sm font-medium">Active Status</label>
+                  <p className="text-xs text-muted-foreground">Visible on storefront</p>
+                </div>
+                <Checkbox
+                  checked={formData.isActive}
+                  onCheckedChange={(checked) => setFormData({ ...formData, isActive: !!checked })}
+                />
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <label className="text-sm font-medium">Hide from navigation</label>
+                  <p className="text-xs text-muted-foreground">Hides this from the main menu</p>
+                </div>
+                <Checkbox
+                  checked={formData.hideFromNav}
+                  onCheckedChange={(checked) => setFormData({ ...formData, hideFromNav: !!checked })}
+                />
               </div>
             </CardContent>
           </Card>

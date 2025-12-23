@@ -19,7 +19,8 @@ import {
   Star,
   Store,
   LogOut,
-  FileText
+  FileText,
+  Palette
 } from "lucide-react"
 
 interface SidebarItem {
@@ -59,12 +60,14 @@ const sidebarItems: SidebarItem[] = [
 
 import { logoutAction } from "@/actions/auth"
 import { useRouter } from "next/navigation"
+import { useThemeStore } from "@/store/theme-store"
 
 interface SidebarProps extends React.HTMLAttributes<HTMLDivElement> { }
 
 export function AdminSidebar({ className }: SidebarProps) {
   const pathname = usePathname()
   const router = useRouter()
+  const { settings } = useThemeStore()
 
   const handleLogout = async () => {
     await logoutAction()
@@ -72,7 +75,7 @@ export function AdminSidebar({ className }: SidebarProps) {
   }
 
   const renderItem = (item: SidebarItem) => {
-    // ... (keep existing renderItem implementation)
+    // ...
     const isActive = pathname === item.href || (item.href !== '/admin' && pathname.startsWith(item.href))
     const isParentActive = item.children?.some(child => pathname.startsWith(child.href)) || isActive
 
@@ -124,10 +127,19 @@ export function AdminSidebar({ className }: SidebarProps) {
   return (
     <aside className={cn("border-r bg-card h-full flex flex-col", className)}>
       <div className="p-6 border-b flex items-center gap-2">
-        <div className="h-8 w-8 bg-primary rounded-lg flex items-center justify-center text-primary-foreground">
-          <ShoppingBag className="h-5 w-5" />
-        </div>
-        <span className="font-bold text-xl tracking-tight">Shopify Lite</span>
+        {settings.media.logoDesktop ? (
+          <div className="h-8 w-full max-w-[160px] flex items-center">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={settings.media.logoDesktop} alt={settings.info.name} className="h-full object-contain" />
+          </div>
+        ) : (
+          <>
+            <div className="h-8 w-8 bg-primary rounded-lg flex items-center justify-center text-primary-foreground shrink-0">
+              <ShoppingBag className="h-5 w-5" />
+            </div>
+            <span className="font-bold text-xl tracking-tight truncate">{settings.info.name || "Shopify Lite"}</span>
+          </>
+        )}
       </div>
       <nav className="flex-1 overflow-y-auto py-4">
         <ul className="space-y-1 px-3">
@@ -146,6 +158,16 @@ export function AdminSidebar({ className }: SidebarProps) {
           <Store className="h-4 w-4" />
           <span>Visit Website</span>
         </a>
+        <Link
+          href="/admin/settings/theme"
+          className={cn(
+            "w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors text-muted-foreground hover:bg-muted/50 hover:text-primary",
+            pathname === "/admin/settings/theme" && "bg-primary/10 text-primary"
+          )}
+        >
+          <Palette className="h-4 w-4" />
+          <span>Theme Settings</span>
+        </Link>
         <Link
           href="/admin/settings"
           className={cn(
