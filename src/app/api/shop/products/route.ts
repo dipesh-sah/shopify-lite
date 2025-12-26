@@ -8,12 +8,23 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '20')
     const offset = (page - 1) * limit
 
+    const minPrice = searchParams.get('minPrice') ? parseFloat(searchParams.get('minPrice')!) : undefined
+    const maxPrice = searchParams.get('maxPrice') ? parseFloat(searchParams.get('maxPrice')!) : undefined
+    const inStock = searchParams.get('inStock') === 'true'
+    const sortBy = searchParams.get('sortBy') as any || 'created_at'
+    const sortOrder = searchParams.get('sortOrder') as any || 'desc'
+    const category = searchParams.get('category') || undefined
+
     const { products, totalCount } = await getProducts({
       status: 'active',
       limit,
       offset,
-      sortBy: 'created_at',
-      sortOrder: 'desc'
+      minPrice,
+      maxPrice,
+      inStock,
+      sortBy,
+      sortOrder,
+      category
     })
 
     return NextResponse.json({

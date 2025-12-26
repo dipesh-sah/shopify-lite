@@ -1,4 +1,5 @@
 import { query, execute } from './db';
+import { serializeDate } from './utils';
 import { updateSeoMetadata, createRedirect, SeoMetadata } from './seo';
 import { generateNextNumber } from './number-ranges';
 
@@ -27,8 +28,8 @@ export interface Product {
   tags?: string[];
   images: ProductImage[];
   variants?: ProductVariant[];
-  createdAt: Date;
-  updatedAt: Date;
+  createdAt: string | null;
+  updatedAt: string | null;
   seo?: Partial<SeoMetadata>;
   displayPrice?: number; // Price from default variant if exists
   defaultVariantId?: string; // ID of default variant
@@ -67,6 +68,7 @@ export async function getProducts(options: {
   tags?: string[];
   sortBy?: 'title' | 'price' | 'quantity' | 'status' | 'created_at' | 'updated_at';
   sortOrder?: 'asc' | 'desc';
+  onSale?: boolean;
 } = {}) {
   let baseSql = `
     FROM products p 
@@ -100,6 +102,10 @@ export async function getProducts(options: {
   if (options.maxPrice !== undefined) {
     baseSql += ' AND p.price <= ?';
     params.push(options.maxPrice);
+  }
+
+  if (options.onSale) {
+    baseSql += ' AND p.compare_at_price > p.price';
   }
 
   if (options.inStock) {
@@ -395,9 +401,12 @@ export async function getRelatedProducts(productId: string, limit: number = 4) {
 
     // Get other products from same category
     const rows = await query(`
-      SELECT p.*, c.name as category_name 
+      SELECT p.*, c.name as category_name,
+             COALESCE(dv.price, p.price) as display_price,
+             p.default_variant_id
       FROM products p 
       LEFT JOIN categories c ON p.category_id = c.id 
+      LEFT JOIN product_variants dv ON p.default_variant_id = dv.id
       WHERE p.category_id = ? AND p.id != ? AND p.status = 'active'
       ORDER BY RAND()
       LIMIT ?
@@ -408,9 +417,13 @@ export async function getRelatedProducts(productId: string, limit: number = 4) {
     const productIds = rows.map((r: any) => r.id);
     const placeholders = productIds.map(() => '?').join(',');
 
-    const [allImages, allCollectionCategories] = await Promise.all([
+    const [allImages, allCollectionCategories, allVariants] = await Promise.all([
       query(`SELECT * FROM product_images WHERE product_id IN (${placeholders}) ORDER BY product_id, position ASC`, productIds),
-      query(`SELECT pc.category_id, pc.product_id FROM product_categories pc WHERE pc.product_id IN (${placeholders})`, productIds)
+      query(`SELECT pc.category_id, pc.product_id FROM product_categories pc WHERE pc.product_id IN (${placeholders})`, productIds),
+      query(`SELECT id, product_id, title, sku, price, inventory_quantity, options, images 
+             FROM product_variants 
+             WHERE product_id IN (${placeholders}) 
+             ORDER BY product_id, id ASC`, productIds)
     ]);
 
     const imagesByProduct: Record<string, ProductImage[]> = {};
@@ -432,13 +445,42 @@ export async function getRelatedProducts(productId: string, limit: number = 4) {
       collectionsByProduct[pid].push(cat.category_id.toString());
     });
 
+    // Group variants by product_id
+    const variantsByProduct: Record<string, any[]> = {};
+    allVariants.forEach((v: any) => {
+      const pid = v.product_id.toString();
+      if (!variantsByProduct[pid]) variantsByProduct[pid] = [];
+      variantsByProduct[pid].push({
+        id: v.id.toString(),
+        productId: v.product_id.toString(),
+        title: v.title,
+        sku: v.sku,
+        price: Number(v.price),
+        inventoryQuantity: v.inventory_quantity,
+        options: v.options ? (typeof v.options === 'string' ? JSON.parse(v.options) : v.options) : {},
+        images: v.images ? (typeof v.images === 'string' ? JSON.parse(v.images) : v.images) : []
+      });
+    });
+
     return rows.map((row: any) => {
       const pId = row.id.toString();
-      return mapProductFromDb(
+      const product = mapProductFromDb(
         row,
         imagesByProduct[pId] || [],
         collectionsByProduct[pId] || []
       );
+
+      // Add actual variants to product
+      if (variantsByProduct[pId] && variantsByProduct[pId].length > 0) {
+        product.variants = variantsByProduct[pId];
+
+        // Handle default price if variants exist
+        if (product.displayPrice === product.price && product.variants.length > 0) {
+          product.displayPrice = product.variants[0].price;
+        }
+      }
+
+      return product;
     });
   } catch (err) {
     console.error("Error in getRelatedProducts:", err);
@@ -786,8 +828,8 @@ function mapProductFromDb(row: any, images: ProductImage[], collectionIds: strin
     productType: row.product_type,
     tags: row.tags ? row.tags.split(',') : [],
     images,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
+    createdAt: serializeDate(row.created_at) as any,
+    updatedAt: serializeDate(row.updated_at) as any,
     displayPrice: row.display_price ? Number(row.display_price) : undefined,
     defaultVariantId: row.default_variant_id ? row.default_variant_id.toString() : undefined
   };
@@ -842,6 +884,8 @@ export async function getDefaultVariant(productId: string) {
     inventoryQuantity: v.inventory_quantity,
     options: v.options ? (typeof v.options === 'string' ? JSON.parse(v.options) : v.options) : {},
     images: v.images ? (typeof v.images === 'string' ? JSON.parse(v.images) : v.images) : [],
-    isDefault: true
+    isDefault: true,
+    createdAt: serializeDate(v.created_at),
+    updatedAt: serializeDate(v.updated_at)
   };
 }

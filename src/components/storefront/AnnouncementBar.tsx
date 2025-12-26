@@ -1,30 +1,19 @@
 "use client";
 
-import { MapPin, Headset, HelpCircle } from "lucide-react";
 import Link from "next/link";
+import { ArrowRight } from "lucide-react";
 
 export function AnnouncementBar() {
   return (
-    <div className="bg-[#f5f5f5] text-[#555] text-[11px] py-1.5 border-b">
-      <div className="container flex justify-between items-center">
-        <div className="flex items-center gap-2">
-          <span className="font-medium">Kostenloser Versand ab 75 € innerh. DE</span>
-        </div>
-
-        <div className="hidden md:flex items-center gap-6">
-          <Link href="#" className="flex items-center gap-1.5 hover:text-primary transition-colors">
-            <MapPin className="h-3 w-3" />
-            <span>Zu den Filialen</span>
-          </Link>
-          <Link href="#" className="flex items-center gap-1.5 hover:text-primary transition-colors">
-            <Headset className="h-3 w-3" />
-            <span>Service</span>
-          </Link>
-          <Link href="#" className="flex items-center gap-1.5 hover:text-primary transition-colors">
-            <HelpCircle className="h-3 w-3" />
-            <span>Hilfe</span>
-          </Link>
-        </div>
+    <div className="bg-[#111827] text-white text-[13px] py-2.5 border-b border-white/5">
+      <div className="container flex justify-center items-center">
+        <Link
+          href="/wholesaler"
+          className="flex items-center gap-2 hover:text-white/80 transition-all group font-medium tracking-wide"
+        >
+          <span>Login as a WHOLESALER for Volume Pricing and Discounted Rates</span>
+          <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1" />
+        </Link>
       </div>
     </div>
   );

@@ -1,4 +1,5 @@
 import { execute, query, pool } from './db';
+import { serializeDate } from './utils';
 import { v4 as uuidv4 } from 'uuid';
 import { generateNextNumber } from './number-ranges';
 import { calculateOrderTax } from './tax';
@@ -101,17 +102,45 @@ export async function createOrderMySQL(data: {
     // 1. Validate and Deduct Inventory (Atomic Operation)
     for (const item of data.items) {
       if (item.variantId) {
-        // Handle Variant Inventory
-        const [variantResult] = await connection.execute(
-          `UPDATE product_variants 
-           SET inventory_quantity = inventory_quantity - ? 
-           WHERE id = ? AND inventory_quantity >= ?`,
-          [item.quantity, item.variantId, item.quantity]
-        );
+        // First check if variant exists in the database
+        const variantRows = await connection.query(
+          "SELECT id, inventory_quantity, track_inventory FROM product_variants WHERE id = ?",
+          [item.variantId]
+        ) as any[];
 
-        if ((variantResult as any).affectedRows === 0) {
-          throw new Error(`Insufficient stock for product variant: ${item.title}`);
+        if (variantRows.length > 0 && variantRows[0].track_inventory) {
+          // Handle Variant Inventory - variant exists and tracking is enabled
+          const [variantResult] = await connection.execute(
+            `UPDATE product_variants 
+             SET inventory_quantity = inventory_quantity - ? 
+             WHERE id = ? AND inventory_quantity >= ?`,
+            [item.quantity, item.variantId, item.quantity]
+          );
+
+          if ((variantResult as any).affectedRows === 0) {
+            throw new Error(`Insufficient stock for product variant: ${item.title}`);
+          }
+        } else if (variantRows.length === 0) {
+          // Variant ID provided but doesn't exist - fall back to main product inventory
+          const [productCheck] = await connection.query(
+            "SELECT track_quantity FROM products WHERE id = ?",
+            [item.productId]
+          ) as any[];
+
+          if (productCheck.length > 0 && productCheck[0].track_quantity) {
+            const [productResult] = await connection.execute(
+              `UPDATE products 
+                   SET quantity = quantity - ? 
+                   WHERE id = ? AND quantity >= ?`,
+              [item.quantity, item.productId, item.quantity]
+            );
+
+            if ((productResult as any).affectedRows === 0) {
+              throw new Error(`Insufficient stock for product: ${item.title}`);
+            }
+          }
         }
+        // If variant exists but track_inventory is false, don't deduct anything
       } else {
         // Handle Main Product Inventory (only if track_quantity is true)
         const [productCheck] = await connection.query(
@@ -242,21 +271,39 @@ export async function createOrderMySQL(data: {
 
     // 3. Create Order Items (with Snapshot)
     for (const item of data.items) {
-      // Find tax info for this item
-      const itemTax = taxCalculation.items.find(t => t.productId === item.productId && t.variantId === item.variantId);
+      // Ensure proper type conversion for database with validation
+      let productId: number;
+      if (typeof item.productId === 'string') {
+        productId = parseInt(item.productId, 10);
+        if (isNaN(productId)) {
+          throw new Error(`Invalid productId: ${item.productId}`);
+        }
+      } else {
+        productId = item.productId;
+      }
+
+      let variantId: number | null = null;
+      if (item.variantId) {
+        if (typeof item.variantId === 'string') {
+          const parsed = parseInt(item.variantId, 10);
+          if (!isNaN(parsed)) {
+            variantId = parsed;
+          }
+        } else {
+          variantId = item.variantId;
+        }
+      }
 
       await connection.execute(
-        `INSERT INTO order_items (order_id, product_id, variant_id, product_name, quantity, price, image_url, tax_amount, tax_rate) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO order_items (order_id, product_id, variant_id, product_name, quantity, price, image_url) VALUES (?, ?, ?, ?, ?, ?, ?)`,
         [
           orderId,
-          item.productId,
-          item.variantId || null,
+          productId,
+          variantId,
           item.title || 'Product',
-          item.quantity,
-          item.price,
-          item.image || null, // Store snapshot image
-          itemTax ? itemTax.taxAmount : 0,
-          itemTax ? itemTax.taxRate : 0
+          parseInt(String(item.quantity), 10),
+          parseFloat(String(item.price)),
+          item.image || null,
         ]
       );
     }
@@ -375,8 +422,7 @@ export async function getOrderMySQL(id: string) {
     total: order.total,
     status: order.status,
     paymentStatus: order.payment_status,
-    paymentStatus: order.payment_status,
-    createdAt: order.created_at,
+    createdAt: serializeDate(order.created_at),
     taxTotal: order.tax_total,
     taxBreakdown: order.tax_breakdown,
     items: items.map((item: any) => ({
@@ -385,7 +431,8 @@ export async function getOrderMySQL(id: string) {
       variantId: item.variant_id,
       name: item.product_name,
       quantity: item.quantity,
-      price: item.price
+      price: item.price,
+      image: item.image_url
     }))
   };
 }
@@ -497,7 +544,7 @@ export async function getOrdersMySQL(options: {
       status: order.status,
       paymentStatus: order.payment_status,
       isPaid: order.payment_status === 'paid',
-      createdAt: order.created_at,
+      createdAt: serializeDate(order.created_at),
       items: itemsByOrder[order.id] || []
     };
   });

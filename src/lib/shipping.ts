@@ -70,7 +70,7 @@ export async function calculateShipping(countryCode: string, totalWeight: number
   // Fetch all zones and filter. simpler for now.
   const zones: any[] = await query('SELECT * FROM shipping_zones');
 
-  let matchedZoneIds: number[] = [];
+  const matchedZoneIds: number[] = [];
 
   for (const zone of zones) {
     let countries: string[] = [];

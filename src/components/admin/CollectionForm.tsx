@@ -44,6 +44,7 @@ import { RichTextEditor } from "@/components/admin/RichTextEditor"
 import { MetafieldsRenderer } from "@/components/admin/metadata/MetafieldsRenderer"
 import { cn } from "@/lib/utils"
 import { Product } from "@/lib/products"
+import Loading from "@/components/ui/Loading"
 
 interface CollectionFormProps {
   collection?: any
@@ -194,6 +195,7 @@ export function CollectionForm({ collection, initialSelectedProducts = [] }: Col
           {collection && <Button variant="secondary" size="sm">View</Button>}
           <Button variant="secondary" size="sm">More actions</Button>
           <Button onClick={handleSave} disabled={loading} size="sm">
+            {loading && <Loading variant="inline" size="sm" />}
             {loading ? "Saving..." : "Save"}
           </Button>
         </div>
@@ -455,7 +457,7 @@ export function CollectionForm({ collection, initialSelectedProducts = [] }: Col
                 value={browseSearch}
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => setBrowseSearch(e.target.value)}
               />
-              {isSearching && <div className="absolute right-3 top-2.5 h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>}
+              {isSearching && <Loading variant="inline" size="sm" className="absolute right-3 top-2.5" />}
             </div>
             <div className="border rounded-md h-[400px] overflow-y-auto divide-y">
               {browseSearchResults.map(p => (

@@ -14,7 +14,7 @@ export function RecentlyViewed({ currentProductId }: { currentProductId: string 
     const otherRecent = recent.filter((p: any) => p.id !== currentProductId)
 
     if (otherRecent.length > 0) {
-      setProducts(otherRecent.slice(0, 4))
+      setProducts(otherRecent)
     }
   }, [currentProductId])
 

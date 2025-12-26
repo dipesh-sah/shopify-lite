@@ -5,6 +5,7 @@ import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 import { useAuth } from '@/contexts/AuthContext'
 import { getOrderAction } from '@/actions/orders'
+import Loading from '@/components/ui/Loading'
 import { getProductAction } from '@/actions/products'
 import { ArrowLeft, Package, CheckCircle, Clock, AlertCircle, MapPin, Mail, Phone } from 'lucide-react'
 import jsPDF from 'jspdf'
@@ -149,11 +150,8 @@ export default function OrderDetailsPage() {
 
   if (loading || isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center space-y-4">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-          <p className="text-muted-foreground">Loading order details...</p>
-        </div>
+      <div className="flex items-center justify-center py-12">
+        <Loading size="lg" variant="centered" text="Loading order details..." />
       </div>
     )
   }

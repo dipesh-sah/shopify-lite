@@ -1,153 +1,218 @@
-'use client'
+import { getCustomerProfile } from '@/actions/customer-auth';
+import { redirect } from 'next/navigation';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Separator } from '@/components/ui/separator';
 
-import { useRouter } from 'next/navigation'
-import Link from 'next/link'
-import { useAuth } from "@/contexts/AuthContext"
-import { useEffect } from "react"
-import { LogOut, ShoppingBag, User, MapPin, Settings } from 'lucide-react'
+export const metadata = {
+  title: 'My Account',
+  description: 'Manage your account settings and view your information',
+};
 
-export default function AccountPage() {
-  const { user, loading, signOut } = useAuth()
-  const router = useRouter()
+export default async function AccountDashboard() {
+  const customer = await getCustomerProfile();
 
-  useEffect(() => {
-    if (!loading && !user) {
-      router.push('/signin')
-    }
-  }, [user, loading, router])
-
-  const handleSignOut = async () => {
-    try {
-      await signOut()
-      router.push('/')
-    } catch (error) {
-      console.error('Sign out error:', error)
-    }
+  if (!customer) {
+    redirect('/login?redirect=/account');
   }
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center space-y-4">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-          <p className="text-muted-foreground">Loading your account...</p>
-        </div>
-      </div>
-    )
-  }
-
-  if (!user) {
-    return null
-  }
+  const accountTypeLabel = customer.customerType === 'b2b' ? 'Wholesale' : 'Retail';
+  const accountTypeColor = customer.customerType === 'b2b' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800';
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="container px-4 md:px-6 py-8 md:py-12">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl md:text-4xl font-bold mb-2">My Account</h1>
-          <p className="text-muted-foreground">Manage your profile and orders</p>
+    <div className="container mx-auto py-8 space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">Welcome back, {customer.firstName || 'Customer'}!</h1>
+          <p className="text-muted-foreground mt-1">Manage your account and view your orders</p>
         </div>
-
-        {/* Account Cards Grid */}
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mb-12">
-          {/* Profile Card */}
-          <div className="rounded-lg border bg-card p-6 shadow-sm hover:shadow-md transition-shadow">
-            <div className="flex items-center gap-4 mb-6">
-              <div className="w-14 h-14 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0">
-                <User className="w-7 h-7 text-primary" />
-              </div>
-              <div className="flex-1">
-                <p className="text-xs text-muted-foreground uppercase font-semibold mb-1">Account</p>
-                <p className="font-semibold text-sm break-all">{user.email}</p>
-              </div>
-            </div>
-            <button
-              onClick={handleSignOut}
-              className="w-full inline-flex h-10 items-center justify-center gap-2 rounded-md border border-input bg-background px-4 text-sm font-medium shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground"
-            >
-              <LogOut className="w-4 h-4" />
-              Sign Out
-            </button>
-          </div>
-
-          {/* Orders Card */}
-          <Link
-            href="/orders"
-            className="rounded-lg border bg-card p-6 shadow-sm hover:shadow-md transition-all hover:border-primary/50"
-          >
-            <div className="flex items-center gap-4 mb-6">
-              <div className="w-14 h-14 bg-blue-50 rounded-full flex items-center justify-center flex-shrink-0">
-                <ShoppingBag className="w-7 h-7 text-blue-600" />
-              </div>
-              <div className="flex-1">
-                <p className="text-xs text-muted-foreground uppercase font-semibold mb-1">Orders</p>
-                <p className="font-semibold text-sm">View all orders</p>
-              </div>
-            </div>
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              Track and manage your purchases, view order details and status.
-            </p>
-          </Link>
-
-          {/* Shipping Addresses Card */}
-          <Link
-            href="/account/addresses"
-            className="rounded-lg border bg-card p-6 shadow-sm hover:shadow-md transition-all hover:border-green-500/50"
-          >
-            <div className="flex items-center gap-4 mb-3">
-              <div className="w-14 h-14 bg-green-50 rounded-full flex items-center justify-center flex-shrink-0">
-                <MapPin className="w-7 h-7 text-green-600" />
-              </div>
-              <div className="flex-1">
-                <p className="text-xs text-muted-foreground uppercase font-semibold mb-1">Addresses</p>
-                <p className="font-semibold text-sm">Manage addresses</p>
-              </div>
-            </div>
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              Add or remove shipping addresses for faster checkout.
-            </p>
-          </Link>
-
-          {/* Settings Card */}
-          <Link
-            href="/account/settings"
-            className="rounded-lg border bg-card p-6 shadow-sm hover:shadow-md transition-all hover:border-purple-500/50"
-          >
-            <div className="flex items-center gap-4 mb-6">
-              <div className="w-14 h-14 bg-purple-50 rounded-full flex items-center justify-center flex-shrink-0">
-                <Settings className="w-7 h-7 text-purple-600" />
-              </div>
-              <div className="flex-1">
-                <p className="text-xs text-muted-foreground uppercase font-semibold mb-1">Settings</p>
-                <p className="font-semibold text-sm">Account settings</p>
-              </div>
-            </div>
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              Update your profile information and security preferences.
-            </p>
-          </Link>
-        </div>
-
-        {/* Quick Actions */}
-        <div className="space-y-4">
-          <h2 className="text-lg font-semibold">Quick Actions</h2>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Link
-              href="/products"
-              className="inline-flex h-10 items-center justify-center rounded-md bg-primary px-6 text-sm font-medium text-primary-foreground shadow transition-colors hover:bg-primary/90"
-            >
-              Continue Shopping
-            </Link>
-            <Link
-              href="/"
-              className="inline-flex h-10 items-center justify-center rounded-md border border-input bg-background px-6 text-sm font-medium shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground"
-            >
-              Back to Home
-            </Link>
-          </div>
-        </div>
+        <Badge className={accountTypeColor}>
+          {accountTypeLabel} Account
+        </Badge>
       </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Account Overview */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Account Information</CardTitle>
+            <CardDescription>Your personal details</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="flex justify-between">
+              <span className="text-sm text-muted-foreground">Name:</span>
+              <span className="text-sm font-medium">
+                {customer.firstName} {customer.lastName}
+              </span>
+            </div>
+            <Separator />
+            <div className="flex justify-between">
+              <span className="text-sm text-muted-foreground">Email:</span>
+              <span className="text-sm font-medium">{customer.email}</span>
+            </div>
+            <Separator />
+            <div className="flex justify-between">
+              <span className="text-sm text-muted-foreground">Account Type:</span>
+              <span className="text-sm font-medium">{accountTypeLabel}</span>
+            </div>
+            <Separator />
+            <div className="flex justify-between">
+              <span className="text-sm text-muted-foreground">Status:</span>
+              <Badge variant={customer.accountStatus === 'active' ? 'default' : 'secondary'}>
+                {customer.accountStatus}
+              </Badge>
+            </div>
+
+            <Button asChild className="w-full mt-4">
+              <a href="/account/settings">Edit Profile</a>
+            </Button>
+          </CardContent>
+        </Card>
+
+        {/* B2B Information */}
+        {customer.customerType === 'b2b' && customer.company && (
+          <Card className="border-purple-200">
+            <CardHeader>
+              <CardTitle className="text-purple-900">Wholesale Benefits</CardTitle>
+              <CardDescription>Your B2B account perks</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div>
+                <p className="text-sm font-medium text-purple-900">Company</p>
+                <p className="text-sm text-muted-foreground">{customer.company.name}</p>
+              </div>
+              <Separator />
+              <div className="flex justify-between">
+                <span className="text-sm text-muted-foreground">Wholesale Discount:</span>
+                <span className="text-sm font-semibold text-green-600">
+                  {customer.company.discountPercentage}% OFF
+                </span>
+              </div>
+              <Separator />
+              <div className="flex justify-between">
+                <span className="text-sm text-muted-foreground">Payment Terms:</span>
+                <span className="text-sm font-medium">{customer.company.paymentTerms}</span>
+              </div>
+              <Separator />
+              <div className="flex justify-between">
+                <span className="text-sm text-muted-foreground">Credit Limit:</span>
+                <span className="text-sm font-medium">
+                  ${customer.company.creditLimit.toLocaleString()}
+                </span>
+              </div>
+              {customer.company.minimumOrderValue > 0 && (
+                <>
+                  <Separator />
+                  <div className="flex justify-between">
+                    <span className="text-sm text-muted-foreground">Min. Order:</span>
+                    <span className="text-sm font-medium">
+                      ${customer.company.minimumOrderValue.toLocaleString()}
+                    </span>
+                  </div>
+                </>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Apply for B2B */}
+        {customer.customerType === 'b2c' && customer.accountStatus === 'active' && (
+          <Card className="border-purple-200 bg-purple-50/50">
+            <CardHeader>
+              <CardTitle className="text-purple-900">Upgrade to Wholesale</CardTitle>
+              <CardDescription>Get exclusive B2B pricing and benefits</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <ul className="text-sm space-y-2">
+                <li className="flex items-start gap-2">
+                  <span className="text-green-600 mt-0.5">✓</span>
+                  <span>Up to 20% wholesale discount</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-green-600 mt-0.5">✓</span>
+                  <span>Flexible payment terms</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-green-600 mt-0.5">✓</span>
+                  <span>Dedicated account manager</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-green-600 mt-0.5">✓</span>
+                  <span>Priority support</span>
+                </li>
+              </ul>
+
+              <Button asChild className="w-full bg-purple-600 hover:bg-purple-700">
+                <a href="/account/apply-b2b">Apply for Wholesale Account</a>
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* B2B Application Status */}
+        {customer.customerType === 'b2b' && customer.accountStatus !== 'active' && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Application Status</CardTitle>
+              <CardDescription>Your B2B application progress</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="text-center py-6">
+                <Badge variant={customer.accountStatus === 'pending' ? 'secondary' : 'destructive'}>
+                  {customer.accountStatus.toUpperCase()}
+                </Badge>
+                <p className="text-sm text-muted-foreground mt-4">
+                  {customer.accountStatus === 'pending' && 'Your application is being reviewed'}
+                  {customer.accountStatus === 'suspended' && 'Your account has been suspended'}
+                  {customer.accountStatus === 'rejected' && 'Your application was not approved'}
+                </p>
+                <Button asChild variant="outline" className="mt-4">
+                  <a href="/account/b2b-status">View Details</a>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+
+      {/* Quick Actions */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Quick Actions</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <Button asChild variant="outline" className="h-auto py-4 flex-col gap-2">
+              <a href="/account/orders">
+                <span className="text-2xl">📦</span>
+                <span className="text-sm">My Orders</span>
+              </a>
+            </Button>
+
+            <Button asChild variant="outline" className="h-auto py-4 flex-col gap-2">
+              <a href="/account/addresses">
+                <span className="text-2xl">📍</span>
+                <span className="text-sm">Addresses</span>
+              </a>
+            </Button>
+
+            <Button asChild variant="outline" className="h-auto py-4 flex-col gap-2">
+              <a href="/account/settings">
+                <span className="text-2xl">⚙️</span>
+                <span className="text-sm">Settings</span>
+              </a>
+            </Button>
+
+            <Button asChild variant="outline" className="h-auto py-4 flex-col gap-2">
+              <a href="/products">
+                <span className="text-2xl">🛍️</span>
+                <span className="text-sm">Shop Now</span>
+              </a>
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
     </div>
-  )
+  );
 }

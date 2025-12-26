@@ -5,7 +5,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { Star, Check, X, Trash2, Search, Filter, ArrowRightLeft, Search as SearchIcon, Loader2, Edit2 } from 'lucide-react'
+import { Star, Check, X, Trash2, Search, Filter, ArrowRightLeft, Edit2, RefreshCw } from 'lucide-react'
+import Loading from '@/components/ui/Loading'
 import { updateReviewStatusAction, deleteReviewAction, assignReviewToProductAction } from '@/actions/reviews'
 import { showToast } from '@/components/ui/Toast'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
@@ -20,6 +21,7 @@ interface Review {
   title: string
   rating: number
   content: string
+  comment?: string // Alternative field name in some schemas
   author_name: string
   email: string
   status: 'active' | 'inactive'
@@ -33,7 +35,6 @@ function ProductPicker({ onSelect }: { onSelect: (product: { id: string, title: 
   const [results, setResults] = useState<any[]>([])
   const [searching, setSearching] = useState(false)
 
-  // Debounce search ideally, but for now simple effect
   const handleSearch = async (term: string) => {
     setQuery(term)
     if (term.length < 2) {
@@ -57,7 +58,7 @@ function ProductPicker({ onSelect }: { onSelect: (product: { id: string, title: 
         onChange={(e) => handleSearch(e.target.value)}
       />
       <div className="border rounded-md max-h-[200px] overflow-y-auto">
-        {searching && <div className="p-2 text-sm text-muted-foreground flex gap-2"><Loader2 className="animate-spin h-4 w-4" /> Searching...</div>}
+        {searching && <div className="p-2 text-sm text-muted-foreground flex items-center gap-2"><Loading variant="inline" size="sm" /> Searching...</div>}
         {!searching && results.length === 0 && query.length >= 2 && <div className="p-2 text-sm text-muted-foreground">No products found</div>}
         {results.map(p => (
           <div
@@ -87,9 +88,8 @@ export function AdminReviewList({ reviews, onUpdate }: { reviews: Review[], onUp
   const handleStatusUpdate = async (reviewId: number, status: 'active' | 'inactive') => {
     setLoading(reviewId)
     try {
-      // Map UI action to backend status
       await updateReviewStatusAction(String(reviewId), status)
-      showToast(`Review ${status}`, 'success')
+      showToast(`Review ${status === 'active' ? 'approved' : 'deactivated'}`, 'success')
       onUpdate()
     } catch (err) {
       console.error(err)
@@ -145,104 +145,200 @@ export function AdminReviewList({ reviews, onUpdate }: { reviews: Review[], onUp
   return (
     <div className="space-y-4">
       {/* Filters */}
-      <div className="flex gap-4 mb-4">
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+      <div className="flex gap-3">
+        <div className="relative flex-1 max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
           <Input
             placeholder="Search reviews..."
-            className="pl-9"
+            className="pl-10 h-10 bg-white border-gray-200"
             value={search}
             onChange={e => setSearch(e.target.value)}
           />
         </div>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-[180px]">
-            <Filter className="mr-2 h-4 w-4 text-muted-foreground" />
+          <SelectTrigger className="w-[140px] h-10 bg-white border-gray-200">
+            <Filter className="mr-2 h-4 w-4 text-gray-400" />
             <SelectValue placeholder="Status" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Status</SelectItem>
-            <SelectItem value="active">Active</SelectItem>
-            <SelectItem value="inactive">Inactive</SelectItem>
+            <SelectItem value="all">all</SelectItem>
+            <SelectItem value="active">active</SelectItem>
+            <SelectItem value="inactive">inactive</SelectItem>
           </SelectContent>
         </Select>
       </div>
 
-      <div className="rounded-md border">
+      {/* Table */}
+      <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
         <Table>
           <TableHeader>
-            <TableRow>
-              <TableHead>Review</TableHead>
-              <TableHead>Product</TableHead>
-              <TableHead>Author</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Date</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
+            <TableRow className="bg-gray-50 border-b border-gray-200 hover:bg-gray-50">
+              <TableHead className="text-xs font-semibold text-gray-600 uppercase tracking-wider">Review</TableHead>
+              <TableHead className="text-xs font-semibold text-gray-600 uppercase tracking-wider">Product</TableHead>
+              <TableHead className="text-xs font-semibold text-gray-600 uppercase tracking-wider">Author</TableHead>
+              <TableHead className="text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</TableHead>
+              <TableHead className="text-xs font-semibold text-gray-600 uppercase tracking-wider">Date</TableHead>
+              <TableHead className="text-xs font-semibold text-gray-600 uppercase tracking-wider text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {filteredReviews.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="h-24 text-center">
+                <TableCell colSpan={6} className="h-32 text-center text-gray-500">
                   No reviews found.
                 </TableCell>
               </TableRow>
             ) : (
               filteredReviews.map((review) => (
-                <TableRow key={review.id}>
-                  <TableCell className="max-w-[300px]">
-                    <div className="space-y-1">
-                      <div className="flex text-yellow-500">
+                <TableRow key={review.id} className="border-b border-gray-100 hover:bg-gray-50/50">
+                  {/* Review Column */}
+                  <TableCell className="max-w-[280px] py-4">
+                    <div className="space-y-1.5">
+                      <div className="flex gap-0.5">
                         {[...Array(5)].map((_, i) => (
-                          <Star key={i} className={`h-3 w-3 ${i < review.rating ? 'fill-current' : 'text-gray-300'}`} />
+                          <Star
+                            key={i}
+                            className={`h-3.5 w-3.5 ${i < review.rating ? 'fill-amber-400 text-amber-400' : 'fill-gray-200 text-gray-200'}`}
+                          />
                         ))}
                       </div>
-                      <p className="font-medium truncate">{review.title}</p>
-                      <p className="text-xs text-muted-foreground truncate">{review.content}</p>
+                      <p className="font-semibold text-sm text-gray-900 line-clamp-1">{review.title}</p>
+                      <p className="text-xs text-gray-500 line-clamp-2">
+                        {(() => {
+                          const r = review as any;
+
+                          // Try every possible field name
+                          const possibleContent =
+                            r.content ||
+                            r.comment ||
+                            r.body ||
+                            r.description ||
+                            r.text ||
+                            r.review_content ||
+                            r.reviewContent ||
+                            r.message ||
+                            '';
+
+                          // Log for debugging
+                          if (!possibleContent) {
+                            console.error('NO CONTENT FOUND for review:', review.id, 'Available fields:', Object.keys(r));
+                          } else {
+                            console.log('✓ Content found:', possibleContent.substring(0, 50));
+                          }
+
+                          return possibleContent || '—';
+                        })()}
+                      </p>
                     </div>
                   </TableCell>
-                  <TableCell>
-                    <span className="text-sm font-medium block truncate max-w-[150px]">{review.product_title || 'Unknown Product'}</span>
-                    <span className="text-[10px] text-muted-foreground">ID: {review.product_id}</span>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex flex-col">
-                      <span className="text-sm">{review.author_name}</span>
-                      <span className="text-xs text-muted-foreground">{review.email}</span>
+
+                  {/* Product Column */}
+                  <TableCell className="py-4">
+                    <div className="space-y-0.5">
+                      <p className="text-sm font-medium text-gray-900 max-w-[180px] truncate">
+                        {review.product_title || 'Unknown Product'}
+                      </p>
+                      <p className="text-[10px] text-gray-400 font-mono">
+                        ID: {review.product_id}
+                      </p>
                     </div>
                   </TableCell>
-                  <TableCell>
-                    <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${review.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-800'
-                      }`}>
+
+                  {/* Author Column */}
+                  <TableCell className="py-4">
+                    <div className="space-y-0.5">
+                      <p className="text-sm font-medium text-gray-900">{review.author_name}</p>
+                      <p className="text-xs text-gray-500">{review.email}</p>
+                    </div>
+                  </TableCell>
+
+                  {/* Status Column */}
+                  <TableCell className="py-4">
+                    <span
+                      className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium ${review.status === 'active'
+                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                        : 'bg-amber-50 text-amber-700 border border-amber-200'
+                        }`}
+                    >
                       {review.status}
                     </span>
                   </TableCell>
-                  <TableCell>
-                    <span className="text-xs text-muted-foreground">
-                      {new Date(review.created_at).toLocaleDateString()}
+
+                  {/* Date Column */}
+                  <TableCell className="py-4">
+                    <span className="text-sm text-gray-600" suppressHydrationWarning>
+                      {review.created_at
+                        ? new Date(review.created_at).toLocaleDateString('en-US', {
+                          month: '2-digit',
+                          day: '2-digit',
+                          year: 'numeric'
+                        })
+                        : '—'
+                      }
                     </span>
                   </TableCell>
-                  <TableCell className="text-right">
+
+                  {/* Actions Column */}
+                  <TableCell className="py-4">
                     <div className="flex justify-end gap-1">
-                      <Button size="icon" variant="ghost" title="Move Review" className="h-8 w-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50" onClick={() => setMoveReview(review)}>
-                        <ArrowRightLeft className="h-4 w-4" />
+                      {/* Reassign/Move */}
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        title="Reassign to another product"
+                        className="h-8 w-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-md"
+                        onClick={() => setMoveReview(review)}
+                      >
+                        <RefreshCw className="h-4 w-4" />
                       </Button>
-                      <Button size="icon" variant="ghost" className="h-8 w-8 text-foreground hover:bg-muted" asChild>
+
+                      {/* Edit */}
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        title="Edit review"
+                        className="h-8 w-8 text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-md"
+                        asChild
+                      >
                         <a href={`/admin/reviews/${review.id}`}>
                           <Edit2 className="h-4 w-4" />
                         </a>
                       </Button>
-                      {review.status !== 'active' && (
-                        <Button size="icon" variant="ghost" className="h-8 w-8 text-green-600 hover:text-green-700 hover:bg-green-50" onClick={() => handleStatusUpdate(review.id, 'active')} disabled={loading === review.id}>
+
+                      {/* Approve/Deactivate */}
+                      {review.status !== 'active' ? (
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          title="Approve review"
+                          className="h-8 w-8 text-green-600 hover:text-green-700 hover:bg-green-50 rounded-md"
+                          onClick={() => handleStatusUpdate(review.id, 'active')}
+                          disabled={loading === review.id}
+                        >
                           <Check className="h-4 w-4" />
                         </Button>
-                      )}
-                      {review.status === 'active' && (
-                        <Button size="icon" variant="ghost" className="h-8 w-8 text-orange-600 hover:text-orange-700 hover:bg-orange-50" onClick={() => handleStatusUpdate(review.id, 'inactive')} disabled={loading === review.id}>
+                      ) : (
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          title="Deactivate review"
+                          className="h-8 w-8 text-orange-600 hover:text-orange-700 hover:bg-orange-50 rounded-md"
+                          onClick={() => handleStatusUpdate(review.id, 'inactive')}
+                          disabled={loading === review.id}
+                        >
                           <X className="h-4 w-4" />
                         </Button>
                       )}
-                      <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10" onClick={() => handleDelete(review.id)} disabled={loading === review.id}>
+
+                      {/* Delete */}
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        title="Delete review"
+                        className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-md"
+                        onClick={() => handleDelete(review.id)}
+                        disabled={loading === review.id}
+                      >
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
@@ -254,26 +350,29 @@ export function AdminReviewList({ reviews, onUpdate }: { reviews: Review[], onUp
         </Table>
       </div>
 
+      {/* Move Review Dialog */}
       <Dialog open={!!moveReview} onOpenChange={() => setMoveReview(null)}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
-            <DialogTitle>Move Review</DialogTitle>
+            <DialogTitle>Reassign Review to Product</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-gray-600">
               Select a new product to assign this review to.
             </p>
-            <div className="border p-3 rounded-md bg-muted/50 text-sm">
-              <p><strong>Current Review:</strong> {moveReview?.title}</p>
-              <p><strong>Current Product:</strong> {moveReview?.product_title}</p>
+            <div className="border border-gray-200 p-3 rounded-lg bg-gray-50 text-sm space-y-1">
+              <p><strong className="text-gray-700">Review:</strong> <span className="text-gray-900">{moveReview?.title}</span></p>
+              <p><strong className="text-gray-700">Current Product:</strong> <span className="text-gray-900">{moveReview?.product_title}</span></p>
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium">New Product</label>
+              <label className="text-sm font-semibold text-gray-700">New Product</label>
               {targetProduct ? (
-                <div className="flex items-center justify-between p-3 border rounded-md bg-green-50">
+                <div className="flex items-center justify-between p-3 border border-green-200 rounded-lg bg-green-50">
                   <span className="font-medium text-green-800">{targetProduct.title}</span>
-                  <Button variant="ghost" size="sm" onClick={() => setTargetProduct(null)}><X className="h-4 w-4" /></Button>
+                  <Button variant="ghost" size="sm" onClick={() => setTargetProduct(null)} className="h-7 w-7 p-0">
+                    <X className="h-4 w-4" />
+                  </Button>
                 </div>
               ) : (
                 <ProductPicker onSelect={setTargetProduct} />
@@ -282,8 +381,8 @@ export function AdminReviewList({ reviews, onUpdate }: { reviews: Review[], onUp
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setMoveReview(null)}>Cancel</Button>
-            <Button onClick={handleMove} disabled={!targetProduct || moving}>
-              {moving ? 'Moving...' : 'Move Review'}
+            <Button onClick={handleMove} disabled={!targetProduct || moving} className="bg-blue-600 hover:bg-blue-700">
+              {moving ? 'Reassigning...' : 'Reassign Review'}
             </Button>
           </DialogFooter>
         </DialogContent>

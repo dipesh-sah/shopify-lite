@@ -57,7 +57,7 @@ export async function createCart(userId: string) {
 }
 
 export async function addItemToCart(userId: string, item: { productId: number; variantId?: number; quantity: number }) {
-  let cart = await getCartByUserId(userId);
+  const cart = await getCartByUserId(userId);
   let cartId = cart ? cart.id : null;
 
   if (!cartId) {

@@ -8,7 +8,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { ChevronDown, Loader2 } from "lucide-react"
+import { ChevronDown } from "lucide-react" // Removed Loader2
+import Loading from "@/components/ui/Loading" // Added Loading import
 import { exportProductsAction, importProductsAction } from "@/actions/products"
 import { useToast } from "@/components/ui/use-toast"
 
@@ -93,8 +94,11 @@ export function ProductActions() {
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="outline" size="sm" className="gap-1" disabled={isExporting || isImporting}>
-            {(isExporting || isImporting) && <Loader2 className="w-4 h-4 animate-spin" />}
-            More actions <ChevronDown className="h-4 w-4" />
+            {(isExporting || isImporting) ? (
+              <Loading variant="inline" size="sm" />
+            ) : (
+              <>More actions <ChevronDown className="h-4 w-4" /></>
+            )}
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">

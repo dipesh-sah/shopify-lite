@@ -12,7 +12,8 @@ export async function getDashboardStatsAction() {
       pendingOrdersResult,
       recentOrdersResult,
       lowStockResult,
-      topCustomersResult
+      topCustomersResult,
+      b2bPendingResult
     ] = await Promise.all([
       query("SELECT SUM(total) as total FROM orders WHERE payment_status = 'paid'"),
       query("SELECT COUNT(*) as count FROM orders"),
@@ -39,7 +40,8 @@ export async function getDashboardStatsAction() {
         GROUP BY o.customer_email
         ORDER BY total_spent DESC
         LIMIT 5
-      `)
+      `),
+      query("SELECT COUNT(*) as count FROM b2b_applications WHERE status = 'pending'")
     ]);
 
     return {
@@ -47,6 +49,7 @@ export async function getDashboardStatsAction() {
       totalOrders: Number(ordersResult[0]?.count || 0),
       totalProducts: Number(productsResult[0]?.count || 0),
       pendingOrders: Number(pendingOrdersResult[0]?.count || 0),
+      pendingB2BApplications: Number(b2bPendingResult[0]?.count || 0),
       recentOrders: recentOrdersResult.map((o: any) => ({
         id: o.id,
         total: Number(o.total),

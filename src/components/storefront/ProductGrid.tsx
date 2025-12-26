@@ -12,8 +12,8 @@ export function ProductGrid({ title, products, viewAllLink }: ProductGridProps) 
 
   return (
     <section className="container max-w-7xl px-4 md:px-8 py-16">
-      <h2 className="text-2xl font-normal text-[#222] mb-12">{title}</h2>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-8">
+      <h2 className="text-2xl md:text-3xl font-semibold text-[#111] mb-12">{title}</h2>
+      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-5 gap-x-6 gap-y-12">
         {products.map(product => (
           <ProductCard key={product.id} product={product} />
         ))}
@@ -21,10 +21,10 @@ export function ProductGrid({ title, products, viewAllLink }: ProductGridProps) 
 
       {/* View All Button */}
       {viewAllLink && (
-        <div className="flex justify-center mt-12">
+        <div className="flex justify-center mt-16">
           <Link
             href={viewAllLink}
-            className="bg-green-600 hover:bg-green-700 text-white font-semibold px-8 py-3 rounded-md transition-colors duration-200"
+            className="bg-[#94c94d] hover:bg-[#84b93d] text-white font-bold px-10 py-3 rounded-md transition-all duration-200 shadow-md hover:shadow-lg active:scale-95"
           >
             View all
           </Link>

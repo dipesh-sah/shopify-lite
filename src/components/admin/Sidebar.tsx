@@ -49,12 +49,30 @@ const sidebarItems: SidebarItem[] = [
     href: "/admin/customers",
     children: [
       { label: "Segments", href: "/admin/segments" },
+    ]
+  },
+  {
+    icon: Store,
+    label: "B2B",
+    href: "/admin/b2b/applications",
+    children: [
+      { label: "Applications", href: "/admin/b2b/applications" },
       { label: "Companies", href: "/admin/companies" },
     ]
   },
   { icon: Percent, label: "Discounts", href: "/admin/discounts" },
   { icon: Image, label: "Media", href: "/admin/media" },
   { icon: Star, label: "Reviews", href: "/admin/reviews" },
+  {
+    icon: FileText,
+    label: "Blog",
+    href: "/admin/blog/posts",
+    children: [
+      { label: "Categories", href: "/admin/blog/categories" },
+      { label: "Tags", href: "/admin/blog/tags" },
+      { label: "Comments", href: "/admin/blog/comments" },
+    ]
+  },
 ]
 
 

@@ -1,5 +1,5 @@
-
 import { query } from './db';
+import { serializeDate } from './utils';
 
 export interface SalesData {
   date: string;
@@ -33,7 +33,7 @@ export async function getSalesOverTime(days: number = 30): Promise<SalesData[]> 
   const salesMap = new Map();
   rows.forEach((r: any) => {
     // Standardize date key
-    const dateStr = r.date instanceof Date ? r.date.toISOString().split('T')[0] : String(r.date);
+    const dateStr = serializeDate(r.date)?.split('T')[0] || String(r.date);
     console.log("Mapping Data Key:", dateStr, "Revenue:", r.revenue);
     salesMap.set(dateStr, {
       revenue: Number(r.revenue),
@@ -100,6 +100,7 @@ export async function getRecentOrders(limit: number = 10) {
   return rows.map((r: any) => ({
     ...r,
     id: r.id.toString(),
-    total: Number(r.total)
+    total: Number(r.total),
+    created_at: serializeDate(r.created_at)
   }));
 }

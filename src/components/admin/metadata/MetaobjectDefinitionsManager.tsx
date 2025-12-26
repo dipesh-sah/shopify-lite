@@ -8,6 +8,7 @@ import {
   updateMetaobjectDefinitionAction
 } from '@/actions/metadata'
 import { Plus, Pencil, Trash2 } from 'lucide-react'
+import Loading from '@/components/ui/Loading'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -137,39 +138,45 @@ export function MetaobjectDefinitionsManager() {
       </div>
 
       <div className="rounded-md border bg-card flex-1 overflow-hidden flex flex-col">
-        <div className="relative w-full overflow-auto flex-1">
-          <table className="w-full caption-bottom text-sm">
-            <thead className="[&_tr]:border-b sticky top-0 bg-secondary/50 backdrop-blur z-10">
-              <tr className="border-b transition-colors hover:bg-muted/50">
-                <th className="h-10 px-4 text-left font-medium text-muted-foreground">Name</th>
-                <th className="h-10 px-4 text-left font-medium text-muted-foreground">Type</th>
-                <th className="h-10 px-4 text-left font-medium text-muted-foreground">Fields</th>
-                <th className="h-10 px-4 text-right font-medium text-muted-foreground">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {definitions.map(def => (
-                <tr key={def.id} className="border-b transition-colors hover:bg-muted/50">
-                  <td className="p-4 align-middle font-medium">{def.name}</td>
-                  <td className="p-4 align-middle font-mono text-xs">{def.type}</td>
-                  <td className="p-4 align-middle">
-                    {Array.isArray(def.field_definitions) ? def.field_definitions.length : 0} fields
-                  </td>
-                  <td className="p-4 align-middle text-right">
-                    <div className="flex justify-end gap-2">
-                      <Button variant="ghost" size="icon" onClick={() => handleEdit(def)}>
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10" onClick={() => handleDelete(def.id)}>
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </td>
+        {loading ? (
+          <div className="flex-1 flex items-center justify-center">
+            <Loading variant="centered" size="md" />
+          </div>
+        ) : (
+          <div className="relative w-full overflow-auto flex-1">
+            <table className="w-full caption-bottom text-sm">
+              <thead className="[&_tr]:border-b sticky top-0 bg-secondary/50 backdrop-blur z-10">
+                <tr className="border-b transition-colors hover:bg-muted/50">
+                  <th className="h-10 px-4 text-left font-medium text-muted-foreground">Name</th>
+                  <th className="h-10 px-4 text-left font-medium text-muted-foreground">Type</th>
+                  <th className="h-10 px-4 text-left font-medium text-muted-foreground">Fields</th>
+                  <th className="h-10 px-4 text-right font-medium text-muted-foreground">Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {definitions.map(def => (
+                  <tr key={def.id} className="border-b transition-colors hover:bg-muted/50">
+                    <td className="p-4 align-middle font-medium">{def.name}</td>
+                    <td className="p-4 align-middle font-mono text-xs">{def.type}</td>
+                    <td className="p-4 align-middle">
+                      {Array.isArray(def.field_definitions) ? def.field_definitions.length : 0} fields
+                    </td>
+                    <td className="p-4 align-middle text-right">
+                      <div className="flex justify-end gap-2">
+                        <Button variant="ghost" size="icon" onClick={() => handleEdit(def)}>
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10" onClick={() => handleDelete(def.id)}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>

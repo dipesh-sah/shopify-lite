@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
-import { Loader2 } from "lucide-react"
+import Loading from "@/components/ui/Loading"
 
 interface MetafieldsRendererProps {
   ownerType: string
@@ -40,7 +40,7 @@ export function MetafieldsRenderer({ ownerType, ownerId, onChange, definitions: 
       }
 
       // 2. Load Values if ownerId exists
-      if (ownerId && defsRes.data?.length > 0) {
+      if (ownerId && defsRes.data && defsRes.data.length > 0) {
         // We assume we have an action to get all metafields for an owner
         // If not, we might need to fetch them one by one or add a bulk fetch action.
         // For now, let's assume we fetch them all via a new server action or helper.
@@ -57,6 +57,7 @@ export function MetafieldsRenderer({ ownerType, ownerId, onChange, definitions: 
   useEffect(() => {
     if (!ownerId) return;
     async function loadValues() {
+      if (!ownerId) return;
       const res = await getMetafieldsAction(ownerType, ownerId)
       if (res.success && Array.isArray(res.data)) {
         const valMap: Record<string, any> = {}
@@ -85,7 +86,7 @@ export function MetafieldsRenderer({ ownerType, ownerId, onChange, definitions: 
     }
   }
 
-  if (loading) return <div className="py-4"><Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /></div>
+  if (loading) return <div className="py-4"><Loading variant="centered" size="sm" /></div>
   if (definitions.length === 0) return null
 
   return (

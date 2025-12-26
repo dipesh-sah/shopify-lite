@@ -79,17 +79,25 @@ export async function syncCartAction(localItems: any[]) {
   if (!user) return null;
 
   try {
-    // 1. Add all local items to server
-    // Basic sync: Server wins? Or Merge?
-    // Let's Add local to server, then return server state
-    for (const item of localItems) {
-      await addToCartAction(item.product, item.quantity, item.variantId);
-    }
-
-    // 2. Return fresh server cart
+    // For logged-in users, server cart is the source of truth
+    // All cart operations (add/remove/update) already update the server immediately
+    // So sync should just fetch the latest server state, not re-add local items
     return await getCartByUserId(user.id);
   } catch (error) {
     console.error("Sync Cart Error:", error);
     return null;
+  }
+}
+
+export async function clearCartAction() {
+  const user = await getSessionAction();
+  if (!user) return { error: "Unauthorized" };
+
+  try {
+    await clearCart(user.id);
+    return { success: true };
+  } catch (error) {
+    console.error("Clear Cart Error:", error);
+    return { error: "Failed to clear cart" };
   }
 }

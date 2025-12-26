@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
-import { Loader2, Mail, ShieldCheck, AlertTriangle } from 'lucide-react';
+import { Mail, ShieldCheck, AlertTriangle } from 'lucide-react';
+import Loading from '@/components/ui/Loading';
 import {
   get2FAStatusAction,
   enable2FAAction,
@@ -56,13 +57,11 @@ export function TwoFactorSettings() {
     }
   }
 
-  if (loading) {
-    return (
-      <div className="flex h-40 items-center justify-center">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
+  return (
+    <div className="flex h-40 items-center justify-center">
+      <Loading variant="inline" size="md" />
+    </div>
+  );
 
   return (
     <div className="space-y-6 border rounded-lg p-6">

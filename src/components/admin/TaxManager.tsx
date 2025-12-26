@@ -2,7 +2,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Plus, Trash2, Edit, Loader2, Save } from 'lucide-react'
+import { Plus, Trash2, Edit, Save } from 'lucide-react'
+import Loading from '@/components/ui/Loading'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -181,7 +182,10 @@ function TaxClassesManager() {
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={3} className="text-center h-24">Loading...</TableCell>
+                <TableCell colSpan={3} className="text-center h-24">
+                  <Loading variant="inline" size="sm" />
+                  <span className="ml-2">Loading classes...</span>
+                </TableCell>
               </TableRow>
             ) : classes.length === 0 ? (
               <TableRow>
@@ -333,7 +337,10 @@ function TaxRulesManager() {
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center h-24">Loading...</TableCell>
+                <TableCell colSpan={7} className="text-center h-24">
+                  <Loading variant="inline" size="sm" />
+                  <span className="ml-2">Loading rules...</span>
+                </TableCell>
               </TableRow>
             ) : rules.length === 0 ? (
               <TableRow>

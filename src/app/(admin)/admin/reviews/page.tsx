@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import { AdminReviewList } from "@/components/admin/AdminReviewList"
 import { getAllAdminReviewsAction } from "@/actions/reviews"
+import Loading from "@/components/ui/Loading"
 
 
 export default function AdminReviewsPage() {
@@ -32,7 +33,9 @@ export default function AdminReviewsPage() {
 
       <div className="rounded-lg border bg-card p-6">
         {loading ? (
-          <div className="text-center py-8">Loading reviews...</div>
+          <div className="text-center py-8">
+            <Loading variant="centered" size="md" text="Loading reviews..." />
+          </div>
         ) : (
           <AdminReviewList reviews={reviews} onUpdate={loadReviews} />
         )}

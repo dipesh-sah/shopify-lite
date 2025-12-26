@@ -44,22 +44,23 @@ export const useCart = create<CartStore>()(
       openCart: () => set({ isOpen: true }),
       closeCart: () => set({ isOpen: false }),
 
+
       syncWithServer: async () => {
         const localItems = get().items;
         const serverCart = await syncCartAction(localItems);
 
         if (serverCart && serverCart.items) {
           // Map server items back to local format
-          // Note: Server might return slightly different structure, ensuring compatibility
+          // Server returns items with nested product object
           const mergedItems = serverCart.items.map((i: any) => ({
             product: {
-              id: i.productId.toString(),
-              name: i.title || 'Product', // server should ensure title
-              slug: i.slug || i.productId.toString(), // server should return slug
-              price: Number(i.price),
-              images: i.image ? [i.image] : [],
-              description: '',
-              categoryId: ''
+              id: i.productId?.toString() || i.product?.id,
+              name: i.product?.name || i.title || 'Product',
+              slug: i.product?.slug || i.slug || i.productId?.toString(),
+              price: Number(i.product?.price || 0),
+              images: i.product?.images || (i.image ? [i.image] : []),
+              description: i.product?.description || '',
+              categoryId: i.product?.categoryId || ''
             },
             quantity: i.quantity,
             variantId: i.variantId ? i.variantId.toString() : undefined

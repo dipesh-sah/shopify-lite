@@ -3,12 +3,13 @@
 
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
+import Loading from "@/components/ui/Loading"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { revokeSessionAction, getLoginHistoryAction } from "@/actions/account/sessions"
 import { changePasswordAction } from "@/actions/account/profile"
 import { useToast } from "@/components/ui/use-toast"
-import { Loader2, Shield, Smartphone, Globe } from "lucide-react"
+import { Shield, Smartphone, Globe } from "lucide-react"
 
 export function SecuritySettings({ sessions }: { sessions: any[] }) {
   const [loading, setLoading] = useState(false)
@@ -70,9 +71,13 @@ export function SecuritySettings({ sessions }: { sessions: any[] }) {
             <Label htmlFor="newPassword">New Password</Label>
             <Input id="newPassword" name="newPassword" type="password" required />
           </div>
-          <Button type="submit" disabled={loading}>
-            {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Update Password
+          <Button type="submit" disabled={loading} className="gap-2">
+            {loading ? (
+              <>
+                <Loading variant="inline" size="sm" />
+                Updating...
+              </>
+            ) : "Update Password"}
           </Button>
         </form>
       </div>

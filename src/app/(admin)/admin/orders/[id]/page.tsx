@@ -9,6 +9,7 @@ import { useStoreSettings } from '@/components/providers/StoreSettingsProvider'
 import { generateInvoice } from '@/components/admin/orders/InvoiceGenerator'
 import { MetafieldsRenderer } from "@/components/admin/metadata/MetafieldsRenderer"
 import { updateOrderAction } from '@/actions/orders'
+import Loading from '@/components/ui/Loading'
 
 interface Order {
   id: string
@@ -161,10 +162,7 @@ export default function AdminOrderDetailsPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="text-center space-y-4">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-          <p className="text-muted-foreground">Loading order details...</p>
-        </div>
+        <Loading size="lg" variant="centered" text="Loading order details..." />
       </div>
     )
   }

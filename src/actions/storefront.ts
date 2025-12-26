@@ -9,12 +9,10 @@ export async function getSaleProductsAction(limit = 4) {
     const { products } = await db.getProducts({
       status: 'active',
       limit,
-      // We can use minPrice/maxPrice if needed, but for sale we just need compare_at_price > price
+      onSale: true
     })
 
-    // Filter for sale products in memory (since getProducts doesn't have a sale filter yet)
-    // Or we could add it to getProducts if it was more complex.
-    return products.filter(p => p.compareAtPrice && p.compareAtPrice > p.price).slice(0, limit)
+    return products
   } catch (error) {
     console.error("Error fetching sale products:", error)
     return []

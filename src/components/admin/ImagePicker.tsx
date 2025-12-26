@@ -5,12 +5,14 @@ import { Button } from "@/components/ui/button"
 import { showToast } from "@/components/ui/Toast"
 import { Upload, X, Image as ImageIcon, Plus, FolderOpen } from "lucide-react"
 import { MediaLibraryModal } from "./MediaLibraryModal"
+import Loading from "@/components/ui/Loading"
 
 interface ImagePickerProps {
   images: string[]
   onChange: (images: string[]) => void
   maxImages?: number
   multiple?: boolean
+  single?: boolean
 }
 
 export function ImagePicker({
@@ -18,9 +20,12 @@ export function ImagePicker({
   onChange,
   maxImages,
   multiple = true,
+  single = false,
 }: ImagePickerProps) {
   const [uploading, setUploading] = useState(false)
   const [mediaLibraryOpen, setMediaLibraryOpen] = useState(false)
+  const [urlModalOpen, setUrlModalOpen] = useState(false)
+  const [urlInput, setUrlInput] = useState("")
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -58,9 +63,14 @@ export function ImagePicker({
   }
 
   const handleUrlAdd = () => {
-    const url = prompt("Enter image URL:")
-    if (url) {
-      onChange([...images, url])
+    if (urlInput) {
+      if (single) {
+        onChange([urlInput])
+      } else {
+        onChange([...images, urlInput])
+      }
+      setUrlInput("")
+      setUrlModalOpen(false)
     }
   }
 
@@ -87,8 +97,45 @@ export function ImagePicker({
         open={mediaLibraryOpen}
         onOpenChange={setMediaLibraryOpen}
         onSelect={handleMediaSelect}
-        multiple={multiple}
+        multiple={multiple && !single}
       />
+
+      {/* URL Input Modal */}
+      {urlModalOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div className="p-6 border-b border-gray-100 dark:border-gray-700">
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white">Add Image via URL</h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Paste the direct link to your image below</p>
+            </div>
+            <div className="p-6">
+              <input
+                autoFocus
+                type="url"
+                value={urlInput}
+                onChange={(e) => setUrlInput(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleUrlAdd()}
+                placeholder="https://example.com/image.jpg"
+                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white outline-none"
+              />
+            </div>
+            <div className="p-6 bg-gray-50 dark:bg-gray-900/50 flex gap-3 justify-end">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setUrlModalOpen(false)
+                  setUrlInput("")
+                }}
+              >
+                Cancel
+              </Button>
+              <Button onClick={handleUrlAdd} disabled={!urlInput}>
+                Add Image
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {images.length > 0 && (
         <div className="grid grid-cols-2 text-center md:grid-cols-4 lg:grid-cols-5 gap-4">
@@ -142,7 +189,7 @@ export function ImagePicker({
               className="relative aspect-square flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-lg bg-gray-50 hover:bg-gray-100 hover:border-gray-400 transition-all group text-gray-500 hover:text-gray-700"
             >
               {uploading ? (
-                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-gray-500"></div>
+                <Loading size="sm" variant="inline" />
               ) : (
                 <>
                   <div className="w-10 h-10 rounded-full bg-white shadow-sm flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
@@ -158,7 +205,7 @@ export function ImagePicker({
           {(!maxImages || images.length < maxImages) && (
             <button
               type="button"
-              onClick={handleUrlAdd}
+              onClick={() => setUrlModalOpen(true)}
               className="relative aspect-square flex flex-col items-center justify-center border border-gray-200 rounded-lg bg-white hover:bg-gray-50 transition-all text-gray-500 hover:text-gray-700"
             >
               <ImageIcon className="w-6 h-6 mb-2 opacity-50" />
@@ -203,7 +250,7 @@ export function ImagePicker({
                   type="button"
                   size="sm"
                   variant="outline"
-                  onClick={handleUrlAdd}
+                  onClick={() => setUrlModalOpen(true)}
                   className="border-gray-300 hover:bg-gray-50"
                 >
                   Add from URL

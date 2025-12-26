@@ -1,3 +1,6 @@
+if (typeof window !== 'undefined') {
+  throw new Error('This module can only be used on the server.');
+}
 import mysql from 'mysql2/promise';
 
 if (!process.env.DATABASE_URL) {
@@ -13,41 +16,60 @@ declare global {
 // Parse DATABASE_URL manually to ensure compatibility
 // Format: mysql://user:password@host:port/database
 const dbUrl = process.env.DATABASE_URL;
-const match = dbUrl.match(/mysql:\/\/([^:]+)(?::([^@]*))?@([^:]+)(?::(\d+))?\/([^?]+)/);
 
-let connectionConfig: any = {
-  waitForConnections: true,
-  connectionLimit: 20,
-  maxIdle: 20,
-  idleTimeout: 60000,
-  queueLimit: 0,
-  enableKeepAlive: true,
-  keepAliveInitialDelay: 0
-};
+function getPoolConfig() {
+  const config: any = {
+    waitForConnections: true,
+    connectionLimit: 10,
+    maxIdle: 10,
+    idleTimeout: 60000,
+    queueLimit: 0,
+    enableKeepAlive: true,
+    keepAliveInitialDelay: 0
+  };
 
-if (match) {
-  connectionConfig.user = match[1];
-  connectionConfig.password = match[2] || '';
-  connectionConfig.host = match[3];
-  connectionConfig.port = match[4] ? parseInt(match[4]) : 3306;
-  connectionConfig.database = match[5];
-} else {
-  // Fallback or just pass URI if regex fails (though unlikely for standard format)
-  connectionConfig.uri = dbUrl;
+  const match = dbUrl.match(/mysql:\/\/([^:]+)(?::([^@]*))?@([^:]+)(?::(\d+))?\/([^?]+)/);
+  if (match) {
+    config.user = match[1];
+    config.password = match[2] || '';
+    config.host = match[3];
+    config.port = match[4] ? parseInt(match[4]) : 3306;
+    config.database = match[5];
+  } else {
+    config.uri = dbUrl;
+  }
+  return config;
 }
 
-export const pool = global.mysqlPool || mysql.createPool(connectionConfig);
+const pool = global.mysqlPool || mysql.createPool(getPoolConfig());
 
 if (process.env.NODE_ENV !== 'production') {
   global.mysqlPool = pool;
 }
 
+export { pool };
+
 export async function query<T = any>(sql: string, params: any[] = []): Promise<T[]> {
-  const [results] = await pool.execute(sql, params);
-  return results as T[];
+  try {
+    // Standard query
+    const [results] = await pool.query(sql, params);
+    return results as T[];
+  } catch (error: any) {
+    throw error;
+  }
 }
 
 export async function execute(sql: string, params: any[] = []): Promise<any> {
-  const [result] = await pool.execute(sql, params);
-  return result;
+  try {
+    const [result] = await pool.execute(sql, params);
+    return result;
+  } catch (error: any) {
+    console.error('[DB Execute Error]', {
+      message: error.message,
+      code: error.code,
+      sql: sql.substring(0, 500),
+      params: params.map(p => typeof p === 'string' && p.length > 100 ? p.substring(0, 100) + '...' : p)
+    });
+    throw error;
+  }
 }

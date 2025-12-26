@@ -6,7 +6,6 @@ import { Search, X, ArrowRight } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
-import Image from "next/image"
 
 export function SearchBar() {
   const [searchQuery, setSearchQuery] = useState("")
@@ -23,12 +22,20 @@ export function SearchBar() {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsOpen(false)
+        if (!searchQuery) setIsExpanded(false)
       }
     }
 
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [])
+  }, [searchQuery])
+
+  // Focus input when expanded
+  useEffect(() => {
+    if (isExpanded) {
+      inputRef.current?.focus()
+    }
+  }, [isExpanded])
 
   // Debounce search and fetch results
   useEffect(() => {
@@ -60,6 +67,7 @@ export function SearchBar() {
     if (searchQuery.trim()) {
       router.push(`/search?q=${encodeURIComponent(searchQuery)}`)
       setIsOpen(false)
+      setIsExpanded(false)
     }
   }
 
@@ -71,194 +79,100 @@ export function SearchBar() {
   }
 
   return (
-    <div className="relative flex items-center w-full" ref={dropdownRef}>
-      {/* Desktop Search */}
-      <form onSubmit={handleSubmit} className="hidden md:flex items-center relative w-full h-10">
-        <div className="relative flex-1 h-full">
-          <Input
-            ref={inputRef}
-            type="search"
-            placeholder="Suchbegriff eingeben..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-4 pr-12 w-full h-full rounded-l-md rounded-r-none border-[#ddd] focus-visible:ring-0 focus-visible:border-primary transition-all text-sm"
-            onFocus={() => searchQuery && setIsOpen(true)}
-          />
-          {searchQuery && (
-            <button
-              type="button"
-              onClick={handleClear}
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-1"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          )}
-        </div>
-        <Button
-          type="submit"
-          className="h-full px-5 rounded-l-none rounded-r-md bg-[#eee] text-[#333] hover:bg-primary hover:text-white border border-[#ddd] border-l-0 transition-colors"
-        >
-          <Search className="h-4 w-4" />
-        </Button>
-
-        {/* Search Results Dropdown */}
-        {isOpen && (
-          <div className="absolute top-full left-0 right-0 mt-2 bg-background border rounded-lg shadow-lg max-h-[500px] overflow-y-auto z-50">
-            {isLoading ? (
-              <div className="p-4 text-center text-muted-foreground">
-                Searching...
-              </div>
-            ) : results.length > 0 ? (
-              <>
-                <div className="p-2">
-                  {results.map((product) => (
-                    <Link
-                      key={product.id}
-                      href={`/products/${product.slug}`}
-                      className="flex items-center gap-3 p-3 hover:bg-accent rounded-md transition-colors"
-                      onClick={() => setIsOpen(false)}
-                    >
-                      <div className="w-12 h-12 bg-muted rounded flex-shrink-0 overflow-hidden">
-                        {product.images?.[0] ? (
-                          <img
-                            src={typeof product.images[0] === 'string' ? product.images[0] : product.images[0].url}
-                            alt={product.title || product.name}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center">
-                            <Search className="h-6 w-6 text-muted-foreground" />
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-sm truncate">{product.title || product.name}</p>
-                        <p className="text-sm text-muted-foreground">
-                          ${Number(product.displayPrice || product.price).toFixed(2)}
-                        </p>
-                      </div>
-                    </Link>
-                  ))}
-                </div>
-                <div className="border-t p-2">
-                  <Link
-                    href={`/search?q=${encodeURIComponent(searchQuery)}`}
-                    className="flex items-center justify-center gap-2 p-2 text-sm text-primary hover:bg-accent rounded-md transition-colors"
-                    onClick={() => setIsOpen(false)}
-                  >
-                    View all results
-                    <ArrowRight className="h-4 w-4" />
-                  </Link>
-                </div>
-              </>
-            ) : (
-              <div className="p-4 text-center text-muted-foreground">
-                No products found for "{searchQuery}"
-              </div>
-            )}
-          </div>
-        )}
-      </form>
-
-      {/* Mobile Search */}
-      <div className="md:hidden">
+    <div className="relative flex items-center" ref={dropdownRef}>
+      <div className={`flex items-center transition-all duration-300 ease-in-out ${isExpanded ? 'w-[300px] opacity-100' : 'w-10 opacity-100'}`}>
         {!isExpanded ? (
-          <Button
-            variant="ghost"
-            size="icon"
+          <button
             onClick={() => setIsExpanded(true)}
-            className="h-9 w-9"
+            className="p-2 text-white hover:text-white/80 transition-colors"
+            aria-label="Search"
           >
             <Search className="h-5 w-5" />
-          </Button>
+          </button>
         ) : (
-          <div className="fixed inset-0 bg-background z-50 p-4">
-            <form onSubmit={handleSubmit} className="flex items-center gap-2 mb-4">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  ref={inputRef}
-                  type="search"
-                  placeholder="Search..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10"
-                  autoFocus
-                />
-              </div>
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={() => {
-                  setIsExpanded(false)
-                  setSearchQuery("")
-                  setResults([])
-                }}
-              >
-                Cancel
-              </Button>
-            </form>
-
-            {/* Mobile Results */}
-            <div className="space-y-2">
-              {isLoading ? (
-                <div className="p-4 text-center text-muted-foreground">
-                  Searching...
-                </div>
-              ) : results.length > 0 ? (
-                <>
-                  {results.map((product) => (
-                    <Link
-                      key={product.id}
-                      href={`/products/${product.slug}`}
-                      className="flex items-center gap-3 p-3 hover:bg-accent rounded-md transition-colors border"
-                      onClick={() => {
-                        setIsExpanded(false)
-                        setSearchQuery("")
-                      }}
-                    >
-                      <div className="w-16 h-16 bg-muted rounded flex-shrink-0 overflow-hidden">
-                        {product.images?.[0] ? (
-                          <img
-                            src={typeof product.images[0] === 'string' ? product.images[0] : product.images[0].url}
-                            alt={product.title || product.name}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center">
-                            <Search className="h-8 w-8 text-muted-foreground" />
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium truncate">{product.title || product.name}</p>
-                        <p className="text-sm text-muted-foreground">
-                          ${Number(product.displayPrice || product.price).toFixed(2)}
-                        </p>
-                      </div>
-                    </Link>
-                  ))}
-                  <Link
-                    href={`/search?q=${encodeURIComponent(searchQuery)}`}
-                    className="flex items-center justify-center gap-2 p-3 text-primary hover:bg-accent rounded-md transition-colors border"
-                    onClick={() => {
-                      setIsExpanded(false)
-                      setSearchQuery("")
-                    }}
-                  >
-                    View all results
-                    <ArrowRight className="h-4 w-4" />
-                  </Link>
-                </>
-              ) : searchQuery ? (
-                <div className="p-4 text-center text-muted-foreground border rounded-md">
-                  No products found
-                </div>
-              ) : null}
+          <form onSubmit={handleSubmit} className="flex items-center relative w-full h-9">
+            <div className="relative flex-1 h-full">
+              <Input
+                ref={inputRef}
+                type="search"
+                placeholder="Search products..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9 pr-8 w-full h-full rounded-full border-white/20 bg-white/10 text-white placeholder:text-white/50 focus-visible:ring-1 focus-visible:ring-white/30 focus-visible:border-white/30 transition-all text-sm"
+                onFocus={() => searchQuery && setIsOpen(true)}
+              />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/50" />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={handleClear}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-white/50 hover:text-white p-1"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
             </div>
-          </div>
+          </form>
         )}
       </div>
+
+      {/* Search Results Dropdown */}
+      {isOpen && results.length > 0 && (
+        <div className="absolute top-full right-0 mt-3 bg-[#1f2937] border border-white/10 rounded-xl shadow-2xl w-[400px] overflow-hidden z-50 animate-in fade-in slide-in-from-top-2">
+          {isLoading ? (
+            <div className="p-4 text-center text-white/50">Searching...</div>
+          ) : (
+            <>
+              <div className="p-2 max-h-[350px] overflow-y-auto">
+                {results.map((product) => (
+                  <Link
+                    key={product.id}
+                    href={`/products/${product.slug}`}
+                    className="flex items-center gap-3 p-2.5 hover:bg-white/5 rounded-lg transition-colors group"
+                    onClick={() => {
+                      setIsOpen(false)
+                      setIsExpanded(false)
+                    }}
+                  >
+                    <div className="w-12 h-12 bg-white/5 rounded-md flex-shrink-0 overflow-hidden border border-white/5">
+                      {product.images?.[0] ? (
+                        <img
+                          src={typeof product.images[0] === 'string' ? product.images[0] : product.images[0].url}
+                          alt={product.title}
+                          className="w-full h-full object-cover transition-transform group-hover:scale-110"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <Search className="h-5 w-5 text-white/20" />
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-sm text-white truncate">{product.title}</p>
+                      <p className="text-xs text-white/50">
+                        ${Number(product.displayPrice || product.price).toFixed(2)}
+                      </p>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+              <div className="border-t border-white/10 p-2 bg-white/5">
+                <Link
+                  href={`/search?q=${encodeURIComponent(searchQuery)}`}
+                  className="flex items-center justify-center gap-2 p-2 text-sm font-medium text-white hover:text-white/80 transition-colors"
+                  onClick={() => {
+                    setIsOpen(false)
+                    setIsExpanded(false)
+                  }}
+                >
+                  View all results
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
+              </div>
+            </>
+          )}
+        </div>
+      )}
     </div>
   )
 }

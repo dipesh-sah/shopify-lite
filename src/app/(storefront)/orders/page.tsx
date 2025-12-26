@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useAuth } from '@/contexts/AuthContext'
-import { getCustomerOrdersAction } from '@/actions/orders'
+import { getOrdersAction } from '@/actions/orders'
+import Loading from '@/components/ui/Loading'
 import { ArrowLeft, Package, CheckCircle, Clock, AlertCircle } from 'lucide-react'
 
 interface Order {
@@ -48,7 +49,7 @@ export default function OrdersPage() {
 
     try {
       setIsLoading(true)
-      const data = await getCustomerOrdersAction(undefined, user.id)
+      const data = await getOrdersAction(undefined, user.id)
 
       if (Array.isArray(data)) {
         setOrders(data)
@@ -78,11 +79,8 @@ export default function OrdersPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center space-y-4">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-          <p className="text-muted-foreground">Loading your orders...</p>
-        </div>
+      <div className="flex items-center justify-center py-12">
+        <Loading size="lg" variant="centered" text="Loading your orders..." />
       </div>
     )
   }
@@ -226,9 +224,9 @@ export default function OrdersPage() {
                     <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2 sm:mb-1">Status</h3>
                     <span
                       className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold capitalize border ${order.status.toLowerCase() === 'delivered' ? 'bg-green-50 text-green-700 border-green-200' :
-                          order.status.toLowerCase() === 'pending' ? 'bg-yellow-50 text-yellow-700 border-yellow-200' :
-                            order.status.toLowerCase() === 'cancelled' ? 'bg-red-50 text-red-700 border-red-200' :
-                              'bg-blue-50 text-blue-700 border-blue-200'
+                        order.status.toLowerCase() === 'pending' ? 'bg-yellow-50 text-yellow-700 border-yellow-200' :
+                          order.status.toLowerCase() === 'cancelled' ? 'bg-red-50 text-red-700 border-red-200' :
+                            'bg-blue-50 text-blue-700 border-blue-200'
                         }`}
                     >
                       {getStatusIcon(order.status)}

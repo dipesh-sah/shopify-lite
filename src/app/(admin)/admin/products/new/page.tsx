@@ -9,7 +9,7 @@ import { getTaxClassesAction } from "@/actions/tax"
 import { showToast } from '@/components/ui/Toast'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import Spinner from '@/components/ui/Spinner'
+import Loading from '@/components/ui/Loading'
 import { ImagePicker } from "@/components/admin/ImagePicker"
 import { MultiSelect } from "@/components/ui/multi-select"
 import { ProductOptions } from "@/components/admin/ProductOptions"
@@ -434,6 +434,7 @@ export default function NewProductPage() {
         {/* Actions */}
         <div className="flex gap-4">
           <Button type="submit" disabled={loading}>
+            {loading && <Loading variant="inline" size="sm" />}
             {loading ? "Creating..." : "Create Product"}
           </Button>
           <Button

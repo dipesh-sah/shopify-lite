@@ -13,7 +13,7 @@ export async function POST(req: Request) {
 
     // Calculate total weight (assuming weight is in product or passed in items)
     // If not available, default to 0
-    let totalWeight = 0;
+    const totalWeight = 0;
     if (items && Array.isArray(items)) {
       // logic to sum weight
       // item.product.weight * item.quantity

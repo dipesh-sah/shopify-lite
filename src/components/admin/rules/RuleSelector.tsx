@@ -10,7 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Loader2 } from "lucide-react"
+import Loading from "@/components/ui/Loading"
 
 interface RuleSelectorProps {
   value?: string
@@ -42,7 +42,7 @@ export function RuleSelector({ value, onChange, moduleType, placeholder = "Selec
   return (
     <Select value={value || "none"} onValueChange={(val: string) => onChange(val === "none" ? "" : val)} disabled={disabled || loading}>
       <SelectTrigger className="w-full">
-        <SelectValue placeholder={loading ? "Loading..." : placeholder} />
+        <SelectValue placeholder={loading ? <div className="flex items-center gap-2"><Loading variant="inline" size="sm" /> Loading...</div> : placeholder} />
       </SelectTrigger>
       <SelectContent>
         <SelectItem value="none">None (Always Active)</SelectItem>

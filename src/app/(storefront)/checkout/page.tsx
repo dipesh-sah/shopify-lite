@@ -8,6 +8,7 @@ import { createOrderAction } from '@/actions/orders'
 import { getAddressesAction } from '@/actions/addresses'
 import { getPromotionByCodeAction } from '@/actions/promotions'
 import { calculateTaxAction } from '@/actions/tax'
+import { clearCartAction } from '@/actions/cart'
 import { showToast } from "@/components/ui/Toast"
 import { useState, useEffect } from "react"
 import { AlertCircle, CheckCircle, X, CreditCard, Banknote } from "lucide-react"
@@ -226,6 +227,7 @@ export default function CheckoutPage() {
           quantity: item.quantity,
           price: Number(item.product.price),
           title: item.product.name,
+          image: item.product.images?.[0] || null,
         })),
         total: total,
         shippingAddress: selectedAddress ? {
@@ -264,14 +266,16 @@ export default function CheckoutPage() {
           phone: selectedBillingAddress.phone
         } : undefined),
         shippingMethodId: selectedShippingRate?.methodId,
-        shippingMethodId: selectedShippingRate?.methodId,
         shippingCost: shippingCost,
         paymentMethod: selectedPaymentMethod // Pass to backend
       }
 
       const orderId = await createOrderAction(orderData)
       setSuccess(true)
+
+      // Clear both client-side (localStorage) and server-side (database) cart
       clearCart()
+      await clearCartAction()
 
       setTimeout(() => {
         router.push(`/orders/${orderId}`)

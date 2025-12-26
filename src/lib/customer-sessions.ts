@@ -1,5 +1,6 @@
 
 import { execute, query } from './db';
+import { serializeDate } from './utils';
 import crypto from 'crypto';
 
 export interface CustomerSession {
@@ -8,9 +9,9 @@ export interface CustomerSession {
   token: string;
   userAgent?: string;
   ipAddress?: string;
-  lastActiveAt: Date;
-  expiresAt: Date;
-  createdAt: Date;
+  lastActiveAt: string | null;
+  expiresAt: string | null;
+  createdAt: string | null;
 }
 
 export async function createSession(customerId: string, userAgent?: string, ipAddress?: string): Promise<string> {
@@ -49,9 +50,9 @@ export async function validateSession(token: string): Promise<CustomerSession | 
     token: session.token,
     userAgent: session.user_agent,
     ipAddress: session.ip_address,
-    lastActiveAt: session.last_active_at,
-    expiresAt: session.expires_at,
-    createdAt: session.created_at
+    lastActiveAt: serializeDate(session.last_active_at),
+    expiresAt: serializeDate(session.expires_at),
+    createdAt: serializeDate(session.created_at),
   };
 }
 
@@ -77,8 +78,8 @@ export async function listSessions(customerId: string) {
     id: session.id,
     userAgent: session.user_agent,
     ipAddress: session.ip_address,
-    lastActiveAt: session.last_active_at,
-    createdAt: session.created_at,
+    lastActiveAt: serializeDate(session.last_active_at),
+    createdAt: serializeDate(session.created_at),
     isCurrent: false // Backend doesn't know "current" without token context, managed by caller
   }));
 }

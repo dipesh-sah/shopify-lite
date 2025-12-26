@@ -32,6 +32,7 @@ import { showToast } from '@/components/ui/Toast'
 import { showConfirm } from '@/components/ui/Confirm'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { SegmentManager } from '@/components/admin/customers/SegmentManager'
+import Loading from '@/components/ui/Loading'
 
 export default function CustomersPage() {
   const [customers, setCustomers] = useState<any[]>([])
@@ -132,7 +133,8 @@ export default function CustomersPage() {
                 {loading ? (
                   <TableRow>
                     <TableCell colSpan={6} className="text-center py-8">
-                      Loading...
+                      <Loading variant="inline" size="md" />
+                      <span className="ml-2">Loading customers...</span>
                     </TableCell>
                   </TableRow>
                 ) : filteredCustomers.length === 0 ? (

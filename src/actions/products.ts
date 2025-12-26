@@ -217,58 +217,71 @@ export async function importProductsAction(formData: FormData) {
     const text = await file.text();
     const importedProducts = parseShopifyCsv(text);
 
+    console.log(`[Import] Starting import of ${importedProducts.length} products...`);
+
     let successCount = 0;
-    let errors: string[] = [];
+    const errors: string[] = [];
 
-    for (const productData of importedProducts) {
-      try {
-        if (!productData.title) throw new Error(`Missing Title for handle: ${productData.slug}`);
+    // Process in batches to avoid timeout and improve performance
+    const BATCH_SIZE = 50;
+    for (let i = 0; i < importedProducts.length; i += BATCH_SIZE) {
+      const batch = importedProducts.slice(i, i + BATCH_SIZE);
+      console.log(`[Import] Processing batch ${Math.floor(i / BATCH_SIZE) + 1} (${i + 1}-${Math.min(i + BATCH_SIZE, importedProducts.length)} of ${importedProducts.length})`);
 
-        if (!productData.slug) {
-          productData.slug = productData.title.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '-' + Math.random().toString(36).substring(7);
-        }
+      // Process batch items sequentially to maintain data consistency
+      for (const productData of batch) {
+        try {
+          if (!productData.title) throw new Error(`Missing Title for handle: ${productData.slug}`);
 
-        // Handle auto-collection creation for productType
-        if (productData.productType) {
-          const typeName = productData.productType.trim();
-          const typeSlug = typeName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+          if (!productData.slug) {
+            productData.slug = productData.title.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '-' + Math.random().toString(36).substring(7);
+          }
 
-          if (typeName && typeSlug) {
-            let collection = await collectionDb.getCollectionBySlug(typeSlug);
+          // Handle auto-collection creation for productType
+          if (productData.productType) {
+            const typeName = productData.productType.trim();
+            const typeSlug = typeName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
 
-            if (!collection) {
-              // Create collection if missing
-              const newId = await collectionDb.createCollection({
-                name: typeName,
-                slug: typeSlug,
-                type: 'manual',
-                isActive: true
-              });
-              productData.collectionIds = [...(productData.collectionIds || []), newId];
-            } else {
-              // Add existing id to collectionIds
-              if (!productData.collectionIds?.includes(collection.id)) {
-                productData.collectionIds = [...(productData.collectionIds || []), collection.id];
+            if (typeName && typeSlug) {
+              const collection = await collectionDb.getCollectionBySlug(typeSlug);
+
+              if (!collection) {
+                // Create collection if missing
+                const newId = await collectionDb.createCollection({
+                  name: typeName,
+                  slug: typeSlug,
+                  type: 'manual',
+                  isActive: true
+                });
+                productData.collectionIds = [...(productData.collectionIds || []), newId];
+              } else {
+                // Add existing id to collectionIds
+                if (!productData.collectionIds?.includes(collection.id)) {
+                  productData.collectionIds = [...(productData.collectionIds || []), collection.id];
+                }
               }
             }
           }
-        }
 
-        // Check if product exists for upsert
-        const existingProduct = await db.getProductBySlug(productData.slug);
-        if (existingProduct) {
-          await db.updateProduct(existingProduct.id, productData);
-        } else {
-          await db.createProduct(productData);
+          // Check if product exists for upsert
+          const existingProduct = await db.getProductBySlug(productData.slug);
+          if (existingProduct) {
+            await db.updateProduct(existingProduct.id, productData);
+          } else {
+            await db.createProduct(productData);
+          }
+          successCount++;
+        } catch (e: any) {
+          errors.push(`Product "${productData.title || productData.slug}": ${e.message}`);
+          console.error(`[Import] Error processing product:`, e.message);
         }
-        successCount++;
-      } catch (e: any) {
-        errors.push(`Product "${productData.title || productData.slug}": ${e.message}`);
       }
     }
 
+    console.log(`[Import] Completed: ${successCount} successful, ${errors.length} errors`);
+
     revalidatePath('/admin/products');
-    return { success: true, count: successCount, errors };
+    return { success: true, count: successCount, total: importedProducts.length, errors };
 
   } catch (error) {
     console.error("Import Products Error:", error);

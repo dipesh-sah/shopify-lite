@@ -1,4 +1,5 @@
 import { query, execute } from './db';
+import { serializeDate } from './utils';
 import { updateSeoMetadata, createRedirect, SeoMetadata } from './seo';
 
 // Collection Types
@@ -301,8 +302,8 @@ function mapCollectionFromDb(row: any) {
     seoDescription: row.seo_description,
     isActive: row.status === 'active',
     hideFromNav: !!row.hide_from_nav,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
+    createdAt: serializeDate(row.created_at),
+    updatedAt: serializeDate(row.updated_at),
     categoryId: row.parent_id ? row.parent_id.toString() : undefined,
     // productIds would need a separate query if needed eagerly, but usually fetched separately or joined
     // For compatibility, we might return empty array or fetch if critical.

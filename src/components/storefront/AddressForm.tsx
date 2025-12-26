@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
+import Loading from "@/components/ui/Loading"
 import {
   Dialog,
   DialogContent,
@@ -214,8 +215,13 @@ export function AddressForm({ address, trigger, onSuccess }: AddressFormProps) {
             <Label htmlFor="isDefault">Set as default address</Label>
           </div>
           <div className="flex justify-end pt-4">
-            <Button type="submit" disabled={loading}>
-              {loading ? "Saving..." : "Save Address"}
+            <Button type="submit" disabled={loading} className="gap-2">
+              {loading ? (
+                <>
+                  <Loading variant="inline" size="sm" />
+                  Saving...
+                </>
+              ) : "Save Address"}
             </Button>
           </div>
         </form>

@@ -1,7 +1,8 @@
 "use client"
 
 import { useState } from "react"
-import { Upload, Download, FileText, AlertCircle, CheckCircle2, Loader2, X } from "lucide-react"
+import { Upload, Download, FileText, AlertCircle, CheckCircle2, X } from "lucide-react"
+import Loading from "@/components/ui/Loading"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { importProductsAction, exportProductsAction } from "@/actions/products"
@@ -81,11 +82,11 @@ export function CSVImportExport() {
           <CardContent>
             <Button
               variant="outline"
-              className="w-full h-12"
+              className="w-full h-12 gap-2"
               onClick={handleExport}
               disabled={isExporting}
             >
-              {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+              {isExporting ? <Loading variant="inline" size="sm" /> : <Download className="h-4 w-4" />}
               {isExporting ? "Generating CSV..." : "Export to CSV"}
             </Button>
           </CardContent>
@@ -114,10 +115,10 @@ export function CSVImportExport() {
               />
               <Button
                 variant="outline"
-                className="w-full h-12"
+                className="w-full h-12 gap-2"
                 disabled={isImporting}
               >
-                {isImporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
+                {isImporting ? <Loading variant="inline" size="sm" /> : <Upload className="h-4 w-4" />}
                 {isImporting ? "Importing..." : "Choose File"}
               </Button>
             </div>
@@ -149,7 +150,7 @@ export function CSVImportExport() {
                 </Button>
               </div>
               <p className="text-sm text-muted-foreground mt-1">
-                Successfully processed <strong>{importResult.count}</strong> products.
+                Successfully processed <strong>{importResult.count}</strong> of <strong>{(importResult as any).total || importResult.count}</strong> products.
               </p>
 
               {importResult.errors.length > 0 && (

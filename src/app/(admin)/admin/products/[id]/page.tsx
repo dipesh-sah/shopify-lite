@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { getProductAction, updateProductAction, getMediaAction } from "@/actions/products"
+import Loading from "@/components/ui/Loading"
 import { getCollectionsAction, getSubcategoriesAction } from "@/actions/collections"
 import { getTaxClassesAction } from "@/actions/tax"
 
@@ -265,8 +266,12 @@ export default function ProductDetailsPage({ params }: { params: Promise<{ id: s
     return uploadedUrls;
   };
 
-  if (loading) return <div>Loading...</div>
-  if (!product) return <div className="p-8">Product not found</div>
+  if (loading) return (
+    <div className="flex items-center justify-center py-12">
+      <Loading variant="centered" size="lg" text="Loading product..." />
+    </div>
+  )
+  if (!product) return <div className="p-8 text-center text-muted-foreground py-20">Product not found</div>
 
   return (
     <div className="max-w-4xl">

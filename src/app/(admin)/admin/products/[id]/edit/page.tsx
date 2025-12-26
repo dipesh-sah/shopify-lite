@@ -6,6 +6,7 @@ import { getProductAction, updateProductAction, getMediaAction } from "@/actions
 import { getCollectionsAction, getSubcategoriesAction } from "@/actions/collections"
 import { getAttributeGroupsAction } from "@/actions/attributes"
 import { showToast } from '@/components/ui/Toast'
+import Loading from "@/components/ui/Loading"
 import { Button } from "@/components/ui/button"
 import Spinner from '@/components/ui/Spinner'
 import { ImagePicker } from "@/components/admin/ImagePicker"
@@ -202,13 +203,11 @@ export default async function ProductEditPage({ params }: { params: Promise<{ id
     }
   }
 
-  if (!product) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <p className="text-muted-foreground">Loading...</p>
-      </div>
-    )
-  }
+  if (loading) return (
+    <div className="flex items-center justify-center py-12">
+      <Loading variant="centered" size="lg" text="Loading product details..." />
+    </div>
+  )
 
   return (
     <div className="max-w-4xl">

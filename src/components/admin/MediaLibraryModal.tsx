@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { X, Check } from "lucide-react"
+import Loading from "@/components/ui/Loading"
 
 interface MediaLibraryModalProps {
   open: boolean
@@ -62,7 +63,7 @@ export function MediaLibraryModal({ open, onOpenChange, onSelect, multiple = tru
         <div className="flex-1 overflow-y-auto">
           {loading ? (
             <div className="flex items-center justify-center py-12">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+              <Loading size="md" variant="centered" />
             </div>
           ) : mediaFiles.length === 0 ? (
             <div className="text-center py-12 text-gray-500">
@@ -79,8 +80,8 @@ export function MediaLibraryModal({ open, onOpenChange, onSelect, multiple = tru
                     type="button"
                     onClick={() => toggleSelection(url)}
                     className={`relative aspect-square rounded-lg border-2 overflow-hidden transition-all ${isSelected
-                        ? 'border-blue-500 ring-2 ring-blue-200'
-                        : 'border-gray-200 hover:border-gray-400'
+                      ? 'border-blue-500 ring-2 ring-blue-200'
+                      : 'border-gray-200 hover:border-gray-400'
                       }`}
                   >
                     <img

@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Switch } from "@/components/ui/switch"
-import { Loader2 } from "lucide-react"
+import Loading from "@/components/ui/Loading"
 import dynamic from 'next/dynamic'
 import { UsersManager } from '@/components/admin/UsersManager'
 import { TaxManager } from '@/components/admin/TaxManager'
@@ -15,11 +15,39 @@ import { RuleManager } from '@/components/admin/rules/RuleManager'
 import { RuleSelector } from '@/components/admin/rules/RuleSelector'
 import { MetafieldDefinitionsManager } from '@/components/admin/metadata/MetafieldDefinitionsManager'
 import { MetaobjectDefinitionsManager } from '@/components/admin/metadata/MetaobjectDefinitionsManager'
+import { showToast } from '@/components/ui/Toast'
 
 const TwoFactorSettings = dynamic(() => import('@/components/admin/TwoFactorSettings').then(mod => mod.TwoFactorSettings), {
   ssr: false,
-  loading: () => <Loader2 className="h-6 w-6 animate-spin" />
+  loading: () => <Loading size="md" />
 })
+
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Textarea } from "@/components/ui/textarea"
+
+const commonCurrencies = [
+  { label: 'USD - US Dollar', value: 'USD' },
+  { label: 'EUR - Euro', value: 'EUR' },
+  { label: 'GBP - British Pound', value: 'GBP' },
+  { label: 'JPY - Japanese Yen', value: 'JPY' },
+  { label: 'CAD - Canadian Dollar', value: 'CAD' },
+  { label: 'AUD - Australian Dollar', value: 'AUD' },
+  { label: 'INR - Indian Rupee', value: 'INR' },
+  { label: 'CNY - Chinese Yuan', value: 'CNY' },
+]
+
+const commonTimezones = [
+  { label: 'UTC', value: 'UTC' },
+  { label: 'GMT', value: 'GMT' },
+  { label: 'EST (UTC-5)', value: 'America/New_York' },
+  { label: 'CST (UTC-6)', value: 'America/Chicago' },
+  { label: 'MST (UTC-7)', value: 'America/Denver' },
+  { label: 'PST (UTC-8)', value: 'America/Los_Angeles' },
+  { label: 'BST (UTC+1)', value: 'Europe/London' },
+  { label: 'CEST (UTC+2)', value: 'Europe/Paris' },
+  { label: 'IST (UTC+5:30)', value: 'Asia/Kolkata' },
+  { label: 'JST (UTC+9)', value: 'Asia/Tokyo' },
+]
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState('general')
@@ -71,11 +99,10 @@ export default function SettingsPage() {
       } else {
         await updateSettingsAction(activeTab, settings)
       }
-      // No onClose needed for page
-      alert("Settings saved successfully")
+      showToast('Settings saved successfully', 'success')
     } catch (error) {
       console.error('Failed to save settings', error)
-      alert("Failed to save settings. You might not have permission.")
+      showToast('Failed to save settings. You might not have permission.', 'error')
     } finally {
       setSaving(false)
     }
@@ -118,44 +145,102 @@ export default function SettingsPage() {
             <div className="h-full p-6">
               {loading ? (
                 <div className="flex h-full items-center justify-center">
-                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                  <Loading size="lg" variant="centered" text="Loading settings..." />
                 </div>
               ) : (
                 <div className="max-w-4xl">
-                  <TabsContent value="general" className="space-y-6 mt-0">
-                    <div className="space-y-4">
+                  <TabsContent value="general" className="space-y-8 mt-0">
+                    {/* Basic Information */}
+                    <div className="bg-white p-6 rounded-xl border shadow-sm space-y-6">
                       <div>
-                        <h3 className="text-lg font-medium">General Settings</h3>
-                        <p className="text-sm text-muted-foreground">Manage your basic store information.</p>
+                        <h3 className="text-lg font-semibold text-gray-900">Basic Information</h3>
+                        <p className="text-sm text-muted-foreground mt-1">Manage your basic store information and contact details.</p>
                       </div>
-                      <div className="grid grid-cols-2 gap-4">
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="space-y-2">
-                          <Label>Store Name</Label>
+                          <Label className="text-sm font-medium">Store Name</Label>
                           <Input
+                            placeholder="My Awesome Shop"
                             value={settings.storeName || ''}
                             onChange={e => handleChange('storeName', e.target.value)}
+                            className="bg-gray-50/50"
                           />
                         </div>
                         <div className="space-y-2">
-                          <Label>Store Email</Label>
+                          <Label className="text-sm font-medium">Store Email</Label>
                           <Input
+                            type="email"
+                            placeholder="contact@yourstore.com"
                             value={settings.storeEmail || ''}
                             onChange={e => handleChange('storeEmail', e.target.value)}
+                            className="bg-gray-50/50"
                           />
                         </div>
                         <div className="space-y-2">
-                          <Label>Currency</Label>
+                          <Label className="text-sm font-medium">Store Phone</Label>
                           <Input
+                            placeholder="+1 (555) 000-0000"
+                            value={settings.storePhone || ''}
+                            onChange={e => handleChange('storePhone', e.target.value)}
+                            className="bg-gray-50/50"
+                          />
+                        </div>
+                        <div className="space-y-2 md:col-span-2">
+                          <Label className="text-sm font-medium">Store Address</Label>
+                          <Textarea
+                            placeholder="123 Shopping St, Retail City, 12345"
+                            value={settings.storeAddress || ''}
+                            onChange={e => handleChange('storeAddress', e.target.value)}
+                            className="bg-gray-50/50 min-h-[100px]"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Regional Settings */}
+                    <div className="bg-white p-6 rounded-xl border shadow-sm space-y-6">
+                      <div>
+                        <h3 className="text-lg font-semibold text-gray-900">Regional Settings</h3>
+                        <p className="text-sm text-muted-foreground mt-1">Configure your store's currency and time zones.</p>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="space-y-2">
+                          <Label className="text-sm font-medium">Currency</Label>
+                          <Select
                             value={settings.currency || 'USD'}
-                            onChange={e => handleChange('currency', e.target.value)}
-                          />
+                            onValueChange={(val: string) => handleChange('currency', val)}
+                          >
+                            <SelectTrigger className="bg-gray-50/50">
+                              <SelectValue placeholder="Select currency" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {commonCurrencies.map(curr => (
+                                <SelectItem key={curr.value} value={curr.value}>
+                                  {curr.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         </div>
                         <div className="space-y-2">
-                          <Label>Timezone</Label>
-                          <Input
+                          <Label className="text-sm font-medium">Timezone</Label>
+                          <Select
                             value={settings.timezone || 'UTC'}
-                            onChange={e => handleChange('timezone', e.target.value)}
-                          />
+                            onValueChange={(val: string) => handleChange('timezone', val)}
+                          >
+                            <SelectTrigger className="bg-gray-50/50">
+                              <SelectValue placeholder="Select timezone" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {commonTimezones.map(tz => (
+                                <SelectItem key={tz.value} value={tz.value}>
+                                  {tz.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         </div>
                       </div>
                     </div>
@@ -418,8 +503,7 @@ export default function SettingsPage() {
       <div className="flex justify-end">
         {activeTab !== 'users' && activeTab !== 'security' && activeTab !== 'rules' && activeTab !== 'metafields' && activeTab !== 'metaobjects' && (
           <Button onClick={handleSave} disabled={saving} size="lg">
-            {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Save Changes
+            {saving ? 'Saving...' : 'Save Changes'}
           </Button>
         )}
       </div>

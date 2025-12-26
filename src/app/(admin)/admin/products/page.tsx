@@ -21,7 +21,7 @@ export default async function AdminProductsPage({ searchParams }: AdminProductsP
   const categoryId = (params?.category as string) || undefined
 
   const page = params?.page ? parseInt(params.page as string) : 1
-  const limit = 15
+  const limit = 50 // Increased from 15 to show more products per page
 
   // Parallel data fetching
   const [{ products, totalCount, totalPages }, { collections }] = await Promise.all([

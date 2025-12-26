@@ -26,6 +26,11 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     root.style.setProperty("--text-main", settings.typography.textColor);
     root.style.setProperty("--text-heading", settings.typography.headingColor);
 
+    // Ecommerce Colors
+    root.style.setProperty("--price-color", settings.ecommerce.priceColor);
+    root.style.setProperty("--buy-button", settings.ecommerce.buyButtonColor);
+    root.style.setProperty("--buy-button-text", settings.ecommerce.buyButtonTextColor);
+
     // 2. Load Google Fonts
     const fontsToLoad = [settings.typography.bodyFont, settings.typography.headingFont];
     const uniqueFonts = Array.from(new Set(fontsToLoad)).filter(Boolean);

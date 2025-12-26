@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react'
 import { getDashboardStatsAction } from '@/actions/dashboard'
-import { DollarSign, ShoppingBag, Package, Clock } from 'lucide-react'
+import { DollarSign, ShoppingBag, Package, Clock, Store } from 'lucide-react'
 import Link from 'next/link'
 import { InventoryAlerts } from '@/components/admin/dashboard/InventoryAlerts'
 import { TopCustomers } from '@/components/admin/dashboard/TopCustomers'
@@ -19,6 +19,7 @@ export default function AdminDashboard() {
     totalOrders: 0,
     totalProducts: 0,
     pendingOrders: 0,
+    pendingB2BApplications: 0,
     recentOrders: [] as any[],
     inventoryAlerts: [] as any[],
     topCustomers: [] as any[]
@@ -54,7 +55,7 @@ export default function AdminDashboard() {
 
   async function handleExport() {
     try {
-      showToast('Generating report...', 'loading')
+      showToast('Generating report...', 'info')
       const result = await exportDashboardAction() // Updated action call
 
       if (result.error) {
@@ -145,6 +146,17 @@ export default function AdminDashboard() {
             <p className="text-xs text-muted-foreground">Requires attention</p>
           </div>
         </div>
+
+        <Link href="/admin/b2b/applications" className="group rounded-xl border bg-card p-6 shadow-sm transition-all hover:border-primary/50">
+          <div className="flex items-center justify-between space-y-0 pb-2">
+            <h3 className="tracking-tight text-sm font-medium text-muted-foreground group-hover:text-primary">B2B Applications</h3>
+            <Store className="h-4 w-4 text-muted-foreground group-hover:text-primary" />
+          </div>
+          <div>
+            <div className="text-2xl font-bold text-primary">{stats.pendingB2BApplications}</div>
+            <p className="text-xs text-muted-foreground">Pending review</p>
+          </div>
+        </Link>
       </div>
 
       {/* Sales Chart */}

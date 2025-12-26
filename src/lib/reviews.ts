@@ -1,5 +1,5 @@
-
 import { query, execute } from './db';
+import { serializeDate } from './utils';
 import { RowDataPacket } from 'mysql2';
 
 export interface Review {
@@ -15,8 +15,8 @@ export interface Review {
   phone?: string;
   status: 'active' | 'inactive';
   is_verified: boolean;
-  created_at: Date;
-  updated_at: Date;
+  created_at: string | null;
+  updated_at: string | null;
 }
 
 // ----------------------------------------------------------------------
@@ -126,7 +126,12 @@ export async function getReview(id: number): Promise<Review & { product_ids: num
   const productRows = await query('SELECT product_id FROM review_products WHERE review_id = ?', [id]);
   const productIds = (productRows as any[]).map(row => row.product_id);
 
-  return { ...review, product_ids: productIds };
+  return {
+    ...review,
+    product_ids: productIds,
+    created_at: serializeDate(review.created_at),
+    updated_at: serializeDate(review.updated_at)
+  };
 }
 
 // ----------------------------------------------------------------------
@@ -190,7 +195,12 @@ export async function getReviews(options: {
   const rows = await query<Review & RowDataPacket>(dataSql, [...params, limit, offset]);
 
   return {
-    reviews: rows.map(r => ({ ...r, is_verified: Boolean(r.is_verified) })),
+    reviews: rows.map(r => ({
+      ...r,
+      is_verified: Boolean(r.is_verified),
+      created_at: serializeDate(r.created_at),
+      updated_at: serializeDate(r.updated_at)
+    })),
     total,
     page,
     totalPages: Math.ceil(total / limit)
@@ -211,7 +221,12 @@ export async function getPublicReviews(productId: number, limit = 10, offset = 0
     ORDER BY r.created_at DESC
     LIMIT ? OFFSET ?
   `, [productId, limit, offset]);
-  return rows.map(r => ({ ...r, is_verified: Boolean(r.is_verified) }));
+  return rows.map(r => ({
+    ...r,
+    is_verified: Boolean(r.is_verified),
+    created_at: serializeDate(r.created_at),
+    updated_at: serializeDate(r.updated_at)
+  }));
 }
 
 export async function getReviewStats(productId: number) {

@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import { getProductsAction } from "@/actions/products"
 import { ProductCard } from "@/components/storefront/ProductCard"
 import { getActiveCollectionsAction } from "@/actions/collections"
+import Loading from "@/components/ui/Loading"
 
 export default function ProductsPage() {
   const [products, setProducts] = useState<any[]>([])
@@ -152,7 +153,7 @@ export default function ProductsPage() {
         <div className="flex-1">
           {loading ? (
             <div className="flex items-center justify-center h-64">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-black"></div>
+              <Loading variant="centered" size="lg" />
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">

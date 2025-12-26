@@ -3,11 +3,11 @@
 
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
+import Loading from "@/components/ui/Loading"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { updateProfileAction } from "@/actions/account/profile"
 import { useToast } from "@/components/ui/use-toast"
-import { Loader2 } from "lucide-react"
 
 export function ProfileForm({ user }: { user: any }) {
   const [loading, setLoading] = useState(false)
@@ -86,9 +86,13 @@ export function ProfileForm({ user }: { user: any }) {
         </div>
       </div>
 
-      <Button type="submit" disabled={loading}>
-        {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-        Save Changes
+      <Button type="submit" disabled={loading} className="gap-2">
+        {loading ? (
+          <>
+            <Loading variant="inline" size="sm" />
+            Saving Changes...
+          </>
+        ) : "Save Changes"}
       </Button>
     </form>
   )

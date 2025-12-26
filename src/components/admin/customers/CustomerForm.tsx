@@ -35,6 +35,7 @@ import Link from "next/link"
 import { TagInput } from "@/components/admin/TagInput"
 import { Package } from "lucide-react"
 import { MetafieldsRenderer } from "@/components/admin/metadata/MetafieldsRenderer"
+import Loading from "@/components/ui/Loading"
 
 const customerSchema = z.object({
   firstName: z.string().min(1, "First name is required"),
@@ -52,7 +53,6 @@ const customerSchema = z.object({
     country: z.string().min(1, "Country is required"),
     provinceCode: z.string().optional(),
     zip: z.string().min(1, "ZIP code is required"),
-    phone: z.string().optional(),
     phone: z.string().optional(),
   }).optional(),
   metafields: z.array(z.any()).optional().default([])
@@ -150,6 +150,7 @@ export function CustomerForm({ initialData, isEditing = false, orders = [] }: Cu
               Discard
             </Button>
             <Button size="sm" type="submit" disabled={loading}>
+              {loading && <Loading variant="inline" size="sm" />}
               {loading ? "Saving..." : "Save"}
             </Button>
           </div>

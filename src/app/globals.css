@@ -57,5 +57,36 @@
   html,
   body {
     @apply h-full;
+    font-family: var(--font-body), ui-sans-serif, system-ui, sans-serif;
+    color: var(--text-main, #1f2937);
+    touch-action: manipulation;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: var(--font-heading), var(--font-body), ui-sans-serif, system-ui, sans-serif;
+    color: var(--text-heading, #111827);
+  }
+
+  /* Prevent zoom on mobile images */
+  img {
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+  }
+
+  /* Prevent double-tap zoom */
+  a,
+  button,
+  input,
+  textarea {
+    touch-action: manipulation;
   }
 }

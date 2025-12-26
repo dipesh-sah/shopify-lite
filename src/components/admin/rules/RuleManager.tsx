@@ -7,7 +7,8 @@ import { Rule } from '@/lib/rules/service';
 import { RuleForm } from './RuleForm';
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Edit, Trash2, Loader2, ArrowLeft } from 'lucide-react';
+import { Plus, Edit, Trash2, ArrowLeft } from 'lucide-react';
+import Loading from '@/components/ui/Loading'
 import { showToast } from '@/components/ui/Toast';
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -82,7 +83,7 @@ export function RuleManager() {
 
       {loading ? (
         <div className="flex justify-center py-8">
-          <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+          <Loading variant="centered" size="md" />
         </div>
       ) : rules.length === 0 ? (
         <div className="text-center py-8 border rounded-lg bg-gray-50 text-muted-foreground">

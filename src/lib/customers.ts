@@ -1,4 +1,5 @@
 import { query, execute } from './db';
+import { serializeDate } from './utils';
 
 // Types
 export interface CustomerAddress {
@@ -30,12 +31,12 @@ export interface Customer {
   acceptsMarketing: boolean;
   totalSpent: number;
   totalOrders: number;
-  lastOrderDate?: Date;
+  lastOrderDate?: string;
   profileImageUrl?: string;
   preferences?: Record<string, any>;
   isActive: boolean;
-  createdAt: Date;
-  updatedAt: Date;
+  createdAt: string | null;
+  updatedAt: string | null;
   addresses?: CustomerAddress[];
   defaultAddress?: CustomerAddress;
 }
@@ -272,12 +273,12 @@ function mapCustomerFromDb(row: any): Customer {
     acceptsMarketing: Boolean(row.accepts_marketing),
     totalSpent: Number(row.total_spent || 0),
     totalOrders: Number(row.total_orders || 0),
-    lastOrderDate: row.last_order_date ? new Date(row.last_order_date) : undefined,
+    lastOrderDate: serializeDate(row.last_order_date) || undefined,
     profileImageUrl: row.profile_image_url,
     preferences: row.preferences ? (typeof row.preferences === 'string' ? JSON.parse(row.preferences) : row.preferences) : {},
     isActive: row.is_active !== 0,
-    createdAt: new Date(row.created_at),
-    updatedAt: new Date(row.updated_at),
+    createdAt: serializeDate(row.created_at),
+    updatedAt: serializeDate(row.updated_at),
   };
 }
 

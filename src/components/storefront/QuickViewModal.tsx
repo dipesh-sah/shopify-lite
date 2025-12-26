@@ -6,6 +6,7 @@ import { Star, X, ShoppingCart, ArrowRight, ChevronLeft, ChevronRight } from "lu
 import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { useCart } from "@/store/cart"
+import { useStoreSettings } from "@/contexts/StoreSettingsContext"
 import Link from "next/link"
 import { cn } from "@/lib/utils"
 import { Swiper, SwiperSlide } from 'swiper/react'
@@ -32,6 +33,7 @@ export function QuickViewModal({ product, open, onOpenChange }: QuickViewModalPr
   const navigationPrevRef = React.useRef<HTMLButtonElement>(null)
   const navigationNextRef = React.useRef<HTMLButtonElement>(null)
   const { addItem, openCart } = useCart()
+  const { formatPrice } = useStoreSettings()
 
   const images = product.images || []
   const variants = product.variants || []
@@ -180,11 +182,11 @@ export function QuickViewModal({ product, open, onOpenChange }: QuickViewModalPr
 
             <div className="flex items-baseline gap-3 mb-6">
               <span className="text-2xl font-bold text-zinc-900">
-                ${Number(currentPrice).toFixed(2)}
+                {formatPrice(Number(currentPrice))}
               </span>
               {hasDiscount && (
                 <span className="text-lg text-zinc-400 line-through">
-                  ${Number(compareAtPrice).toFixed(2)}
+                  {formatPrice(Number(compareAtPrice))}
                 </span>
               )}
             </div>

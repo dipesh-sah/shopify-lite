@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { getImagesAction, updateImageAction, deleteImageAction, createImageAction } from '@/actions/media'
 import { showToast } from '@/components/ui/Toast'
 import { showConfirm } from '@/components/ui/Confirm'
-import Spinner from '@/components/ui/Spinner'
+import Loading from '@/components/ui/Loading'
 import { Button } from '@/components/ui/button'
 import { Trash2, Edit2, Copy, Upload as UploadIcon, Link as LinkIcon } from 'lucide-react'
 import { ImageDetailsDialog } from '@/components/admin/media/ImageDetailsDialog'
@@ -14,6 +14,8 @@ export default function MediaPage() {
   const [loading, setLoading] = useState(true)
   const [selectedImage, setSelectedImage] = useState<any | null>(null)
   const [isUploading, setIsUploading] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editAltText, setEditAltText] = useState('')
 
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -139,7 +141,7 @@ export default function MediaPage() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <Spinner className="h-8 w-8" />
+        <Loading size="lg" variant="centered" />
       </div>
     )
   }

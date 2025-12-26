@@ -2,9 +2,11 @@
 "use client"
 
 import { useState } from 'react';
+import Loading from '@/components/ui/Loading';
 import { useRouter } from 'next/navigation';
 import { createRuleAction, updateRuleAction, evaluateRuleAction } from '@/actions/rules';
-import { Rule, RulePayload, RuleCondition } from '@/lib/rules/engine';
+import { RulePayload, RuleCondition } from '@/lib/rules/engine';
+import { Rule } from '@/lib/rules/service';
 import { RuleBuilder } from './RuleBuilder';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -82,8 +84,9 @@ export function RuleForm({ initialData, isEditing, onCancel, onSuccess }: RuleFo
       const context = JSON.parse(testContext);
       const res = await evaluateRuleAction(payload, context);
       if (res.success) {
-        setTestResult(res.result);
-      } else {
+        setTestResult(res.result ?? null);
+      }
+      else {
         alert("Evaluation failed");
       }
     } catch (e) {
@@ -97,8 +100,13 @@ export function RuleForm({ initialData, isEditing, onCancel, onSuccess }: RuleFo
         <h1 className="text-2xl font-bold">{isEditing ? 'Edit Rule' : 'Create New Rule'}</h1>
         <div className="space-x-2">
           <Button variant="outline" onClick={() => onCancel ? onCancel() : router.back()}>Cancel</Button>
-          <Button onClick={handleSubmit} disabled={loading}>
-            {loading ? 'Saving...' : 'Save Rule'}
+          <Button onClick={handleSubmit} disabled={loading} className="gap-2">
+            {loading ? (
+              <>
+                <Loading variant="inline" size="sm" />
+                Saving...
+              </>
+            ) : 'Save Rule'}
           </Button>
         </div>
       </div>
